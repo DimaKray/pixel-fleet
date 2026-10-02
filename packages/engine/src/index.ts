@@ -2,3 +2,4 @@ export * from './types.js';
 export * from './constants.js';
 export * from './geometry.js';
 export * from './placement.js';
+export * from './board.js';
