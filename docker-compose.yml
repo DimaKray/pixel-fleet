@@ -1,0 +1,14 @@
+# Заповнимо на етапі «Docker». Поки що лише заготовка.
+services:
+  server:
+    build:
+      context: .
+      dockerfile: apps/server/Dockerfile
+    ports:
+      - '3001:3001'
+    environment:
+      PORT: 3001
+      CLIENT_ORIGIN: http://localhost:5173
+  # db:
+  #   image: postgres:16
+  #   (додамо на етапі «Постійні дані»)

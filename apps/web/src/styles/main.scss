@@ -1,0 +1,61 @@
+@use 'variables' as *;
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: $color-bg;
+  color: $color-text;
+  font-family: $font-pixel;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+img,
+canvas {
+  image-rendering: pixelated;
+}
+
+.topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 2px solid $color-border;
+
+  &__logo {
+    color: $color-accent;
+  }
+}
+
+.panel {
+  max-width: 720px;
+  margin: 24px auto;
+  padding: 24px;
+  background: $color-panel;
+  border: 2px solid $color-border;
+}
+
+.btn {
+  padding: 8px 12px;
+  background: $color-accent;
+  color: $color-bg;
+  border: 2px solid $color-text;
+  font-family: inherit;
+  cursor: pointer;
+
+  &:hover {
+    filter: brightness(1.1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
+  }
+}
