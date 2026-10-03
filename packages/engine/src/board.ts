@@ -10,8 +10,7 @@ export interface Board {
 }
 
 export type CreateBoardResult =
-  | { ok: true; board: Board }
-  | { ok: false; errors: PlacementError[] };
+  { ok: true; board: Board } | { ok: false; errors: PlacementError[] };
 
 export type FireError = 'out_of_bounds' | 'already_shot';
 

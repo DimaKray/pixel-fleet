@@ -20,21 +20,15 @@ export interface Game {
 }
 
 type SimpleErrorCode =
-  | 'wrong_phase'
-  | 'already_placed'
-  | 'not_your_turn'
-  | 'out_of_bounds'
-  | 'already_shot';
+  'wrong_phase' | 'already_placed' | 'not_your_turn' | 'out_of_bounds' | 'already_shot';
 
 export type GameError =
-  | { code: SimpleErrorCode }
-  | { code: 'invalid_placement'; errors: PlacementError[] };
+  { code: SimpleErrorCode } | { code: 'invalid_placement'; errors: PlacementError[] };
 
 export type GameResult = { ok: true; game: Game } | { ok: false; error: GameError };
 
 export type ShootResult =
-  | { ok: true; game: Game; shot: Shot; sunkShip?: PlacedShip }
-  | { ok: false; error: GameError };
+  { ok: true; game: Game; shot: Shot; sunkShip?: PlacedShip } | { ok: false; error: GameError };
 
 function fail(code: SimpleErrorCode): { ok: false; error: GameError } {
   return { ok: false, error: { code } };

@@ -1,5 +1,6 @@
 import { randomInt, randomUUID } from 'node:crypto';
 import * as engine from '@pixelfleet/engine';
+import type { Presence } from '@pixelfleet/protocol';
 
 /** Без схожих символів 0/O і 1/I. */
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -41,7 +42,7 @@ interface SeatRef {
 
 export type RoomErrorCode = 'room_not_found' | 'room_full' | 'unknown_token';
 export type ManagerError = { code: RoomErrorCode } | engine.GameError;
-export type Presence = 'empty' | 'online' | 'offline';
+export type { Presence };
 
 export type Failure = { ok: false; error: ManagerError };
 export type SeatOk = { ok: true; code: string; player: engine.PlayerId };
