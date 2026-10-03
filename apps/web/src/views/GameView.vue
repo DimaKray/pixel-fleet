@@ -5,7 +5,8 @@ import { useRouter } from 'vue-router';
 import { isSunk } from '@pixelfleet/engine';
 import type { Coord } from '@pixelfleet/engine';
 import BoardGrid from '@/components/BoardGrid.vue';
-import { ui } from '@/lib/assets';
+import FleetStatus from '@/components/FleetStatus.vue';
+import { icons, ui } from '@/lib/assets';
 import { gameStatus } from '@/lib/status';
 import { useGameStore } from '@/stores/game';
 import type { ClientError } from '@/stores/game';
@@ -90,10 +91,22 @@ const ownShips = computed(() => view.value?.ownBoard?.ships ?? []);
 const ownShots = computed(() => view.value?.ownBoard?.shots ?? []);
 const enemyShots = computed(() => view.value?.opponentBoard?.shots ?? []);
 
-const ownRemaining = computed(
-  () => ownShips.value.filter((ship) => !isSunk(ship, ownShots.value)).length,
+const ownSunk = computed(() =>
+  ownShips.value.filter((ship) => isSunk(ship, ownShots.value)).map((ship) => ship.type),
 );
+const enemySunk = computed(
+  () => view.value?.opponentBoard?.sunkShips.map((ship) => ship.type) ?? [],
+);
+
+const ownRemaining = computed(() => ownShips.value.length - ownSunk.value.length);
 const enemyRemaining = computed(() => view.value?.opponentBoard?.shipsRemaining ?? 0);
+
+const ownFleetLabel = computed(
+  () => `${t('game.yourFleet')}: ${ownRemaining.value} ${t('game.remaining')}`,
+);
+const enemyFleetLabel = computed(
+  () => `${t('game.enemyFleet')}: ${enemyRemaining.value} ${t('game.remaining')}`,
+);
 
 const errorText = computed(() => (error.value ? t(`errors.${error.value.code}`) : ''));
 
@@ -128,68 +141,161 @@ function backToMenu(): void {
 </script>
 
 <template>
-  <section v-if="loading || !view" class="panel panel--wide">{{ t('lobby.loading') }}</section>
+  <section v-if="loading || !view" class="screen">
+    <div class="frame">{{ t('lobby.loading') }}</div>
+  </section>
 
-  <section v-else class="panel panel--wide stack">
-    <header class="row row--between">
-      <h1>{{ t('game.title') }} {{ code }}</h1>
-      <span>{{ t(`presence.${game.opponentPresence}`) }}</span>
-    </header>
+  <section v-else class="screen screen--game">
+    <div class="frame stack">
+      <header class="topline">
+        <div class="room">
+          <small>{{ t('game.title') }}</small>
+          <strong>{{ code }}</strong>
+        </div>
 
-    <figure v-if="finished" class="banner">
-      <img :src="status === 'won' ? ui.bannerWin : ui.bannerLose" alt="" />
-      <figcaption class="banner__text">{{ statusText }}</figcaption>
-    </figure>
+        <span class="presence" aria-live="polite">
+          <i class="dot" :class="`dot--${game.opponentPresence}`" />
+          {{ t(`presence.${game.opponentPresence}`) }}
+        </span>
 
-    <template v-else>
-      <p class="status" :class="{ 'status--active': status === 'your_turn' }" aria-live="polite">
-        {{ statusText }}
-      </p>
-      <p v-if="secondsLeft !== null" class="timer" :class="{ 'timer--low': secondsLeft <= 10 }">
-        {{ t('game.timer', { seconds: secondsLeft }) }}
-      </p>
-    </template>
-
-    <div class="boards">
-      <section class="boards__item">
-        <h2>{{ t('board.own') }}</h2>
-        <BoardGrid :label="t('board.own')" :ships="ownShips" :shots="ownShots" />
-        <p>{{ t('game.yourFleet') }}: {{ ownRemaining }} {{ t('game.remaining') }}</p>
-      </section>
-
-      <section class="boards__item">
-        <h2>{{ t('game.opponentBoard') }}</h2>
-        <BoardGrid
-          :label="t('game.opponentBoard')"
-          :ships="enemyShips"
-          :shots="enemyShots"
-          :interactive="canFire"
-          @cell="onFire"
-        />
-        <p>{{ t('game.enemyFleet') }}: {{ enemyRemaining }} {{ t('game.remaining') }}</p>
-      </section>
-    </div>
-
-    <p v-if="errorText" class="error" role="alert">{{ errorText }}</p>
-
-    <div v-if="!finished" class="actions">
-      <button type="button" class="btn btn--ghost" @click="resign">{{ t('game.resign') }}</button>
-    </div>
-
-    <div v-else class="stack">
-      <p v-if="game.rematch.opponent && !game.rematch.you" aria-live="polite">
-        {{ t('game.rematchOffered') }}
-      </p>
-      <p v-else-if="game.rematch.you" aria-live="polite">{{ t('game.rematchWaiting') }}</p>
-
-      <div class="actions">
-        <button type="button" class="btn" :disabled="game.rematch.you" @click="rematch">
-          {{ t('game.rematch') }}
+        <button v-if="!finished" type="button" class="btn btn--small" @click="resign">
+          <img :src="icons.surrender" alt="" />{{ t('game.resign') }}
         </button>
-        <button type="button" class="btn btn--ghost" @click="backToMenu">
-          {{ t('game.backToMenu') }}
-        </button>
+      </header>
+
+      <figure v-if="finished" class="banner">
+        <img :src="status === 'won' ? ui.bannerWin : ui.bannerLose" alt="" />
+        <figcaption class="banner__text">{{ statusText }}</figcaption>
+      </figure>
+
+      <div v-else class="statusbar" :class="`statusbar--${status}`" aria-live="polite">
+        <span>{{ statusText }}</span>
+        <span
+          v-if="secondsLeft !== null"
+          class="statusbar__timer"
+          :class="{ 'statusbar__timer--low': secondsLeft <= 10 }"
+        >
+          <img :src="icons.timer" alt="" />{{ t('game.timer', { seconds: secondsLeft }) }}
+        </span>
+      </div>
+
+      <div class="sides">
+        <section class="side">
+          <h2>{{ t('board.own') }}</h2>
+          <BoardGrid
+            :label="t('board.own')"
+            :ships="ownShips"
+            :shots="ownShots"
+            :active="status === 'opponent_turn'"
+          />
+          <FleetStatus :label="ownFleetLabel" :sunk="ownSunk" />
+        </section>
+
+        <section class="side">
+          <h2>{{ t('game.opponentBoard') }}</h2>
+          <BoardGrid
+            :label="t('game.opponentBoard')"
+            :ships="enemyShips"
+            :shots="enemyShots"
+            :interactive="canFire"
+            :active="status === 'your_turn'"
+            @cell="onFire"
+          />
+          <FleetStatus :label="enemyFleetLabel" :sunk="enemySunk" />
+        </section>
+      </div>
+
+      <p v-if="errorText" class="error" role="alert">{{ errorText }}</p>
+
+      <div v-if="finished" class="stack">
+        <p v-if="game.rematch.opponent && !game.rematch.you" aria-live="polite">
+          {{ t('game.rematchOffered') }}
+        </p>
+        <p v-else-if="game.rematch.you" aria-live="polite">{{ t('game.rematchWaiting') }}</p>
+
+        <div class="row">
+          <button
+            type="button"
+            class="btn btn--primary"
+            :disabled="game.rematch.you"
+            @click="rematch"
+          >
+            {{ t('game.rematch') }}
+          </button>
+          <button type="button" class="btn" @click="backToMenu">{{ t('game.backToMenu') }}</button>
+        </div>
       </div>
     </div>
   </section>
 </template>
+
+<style scoped lang="scss">
+@use '../styles/variables' as *;
+
+.statusbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px;
+  font-family: $font-pixel;
+  font-size: 12px;
+  line-height: 1.5;
+  text-transform: uppercase;
+  background: rgb(6 10 32 / 80%);
+  border: 3px solid $color-teal-dark;
+
+  &--your_turn {
+    color: $color-orange-light;
+    border-color: $color-orange-light;
+    animation: glow 1.4s ease-in-out infinite alternate;
+  }
+
+  &--opponent_turn {
+    color: $color-teal-light;
+    border-color: $color-teal;
+  }
+
+  &__timer {
+    display: inline-flex;
+    gap: 8px;
+    align-items: center;
+    color: $color-text;
+
+    img {
+      width: 18px;
+      height: 18px;
+      object-fit: contain;
+    }
+
+    &--low {
+      color: $color-red-light;
+    }
+  }
+}
+
+@keyframes glow {
+  from {
+    box-shadow: 0 0 6px rgb(249 188 77 / 20%);
+  }
+
+  to {
+    box-shadow: 0 0 22px rgb(249 188 77 / 50%);
+  }
+}
+
+.sides {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px 40px;
+  justify-content: center;
+}
+
+.side {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  align-items: flex-start;
+}
+</style>

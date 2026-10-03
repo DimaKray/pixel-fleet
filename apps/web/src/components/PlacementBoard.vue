@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n';
 import { FLEET, canPlaceShip, shipCells } from '@pixelfleet/engine';
 import type { Coord, Orientation, PlacedShip, ShipType } from '@pixelfleet/engine';
 import BoardGrid from '@/components/BoardGrid.vue';
-import { shipSprites } from '@/lib/assets';
+import { icons, shipSprites } from '@/lib/assets';
 import { isComplete, nextUnplaced, placeShip, randomFleet, without } from '@/lib/draft';
 
 defineProps<{ busy?: boolean; errorText?: string }>();
@@ -83,52 +83,126 @@ onUnmounted(() => window.removeEventListener('keydown', onKey));
 </script>
 
 <template>
-  <section class="placement">
-    <h2>{{ t('placement.title') }}</h2>
-    <p class="hint">{{ t('placement.hint') }}</p>
-
-    <div class="dock">
-      <button
-        v-for="entry in FLEET"
-        :key="entry.type"
-        type="button"
-        class="dock__item"
-        :class="{
-          'dock__item--active': selected === entry.type,
-          'dock__item--placed': isPlaced(entry.type),
-        }"
-        :aria-pressed="selected === entry.type"
-        @click="select(entry.type)"
-      >
-        <img :src="shipSprites[entry.type].src" alt="" />
-        <span>{{ t(`ships.${entry.type}`) }} · {{ entry.size }}</span>
-      </button>
+  <section class="split">
+    <div class="stack">
+      <h2>{{ t('placement.title') }}</h2>
+      <BoardGrid
+        :label="t('board.own')"
+        :ships="draft"
+        :preview="preview"
+        interactive
+        @cell="onCell"
+        @hover="hover = $event"
+      />
     </div>
 
-    <BoardGrid
-      :label="t('board.own')"
-      :ships="draft"
-      :preview="preview"
-      interactive
-      @cell="onCell"
-      @hover="hover = $event"
-    />
+    <aside class="stack">
+      <p class="hint">{{ t('placement.hint') }}</p>
 
-    <div class="actions">
-      <button type="button" class="btn btn--ghost" @click="rotate">
-        {{ t('placement.rotate') }}
-      </button>
-      <button type="button" class="btn btn--ghost" @click="random">
-        {{ t('placement.random') }}
-      </button>
-      <button type="button" class="btn btn--ghost" @click="reset">
-        {{ t('placement.reset') }}
-      </button>
-      <button type="button" class="btn" :disabled="!complete || busy" @click="emit('ready', draft)">
+      <ul class="dock">
+        <li v-for="entry in FLEET" :key="entry.type">
+          <button
+            type="button"
+            class="dock__item"
+            :class="{
+              'dock__item--active': selected === entry.type,
+              'dock__item--placed': isPlaced(entry.type),
+            }"
+            :aria-pressed="selected === entry.type"
+            @click="select(entry.type)"
+          >
+            <img :src="shipSprites[entry.type].src" alt="" />
+            <span class="dock__name">{{ t(`ships.${entry.type}`) }}</span>
+            <span class="dock__size">{{ isPlaced(entry.type) ? '✓' : entry.size }}</span>
+          </button>
+        </li>
+      </ul>
+
+      <div class="row">
+        <button type="button" class="btn btn--small" @click="rotate">
+          <img :src="icons.rotate" alt="" />{{ t('placement.rotate') }}
+        </button>
+        <button type="button" class="btn btn--small" @click="random">
+          {{ t('placement.random') }}
+        </button>
+        <button type="button" class="btn btn--small" @click="reset">
+          {{ t('placement.reset') }}
+        </button>
+      </div>
+
+      <button
+        type="button"
+        class="btn btn--primary btn--big"
+        :disabled="!complete || busy"
+        @click="emit('ready', draft)"
+      >
         {{ busy ? t('placement.sending') : t('placement.ready') }}
       </button>
-    </div>
 
-    <p v-if="errorText" class="error" role="alert">{{ errorText }}</p>
+      <p v-if="errorText" class="error" role="alert">{{ errorText }}</p>
+    </aside>
   </section>
 </template>
+
+<style scoped lang="scss">
+@use '../styles/variables' as *;
+
+.dock {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  &__item {
+    display: grid;
+    grid-template-columns: 112px 1fr auto;
+    gap: 12px;
+    align-items: center;
+    width: 100%;
+    padding: 6px 12px;
+    font-family: inherit;
+    font-size: 13px;
+    color: $color-text;
+    text-align: left;
+    background: rgb(6 10 32 / 65%);
+    border: 3px solid $color-teal-dark;
+    cursor: pointer;
+
+    img {
+      width: 112px;
+      height: 30px;
+      object-fit: contain;
+    }
+
+    &:hover {
+      border-color: $color-teal-light;
+    }
+
+    &:focus-visible {
+      outline: 3px solid $color-orange-light;
+      outline-offset: 2px;
+    }
+
+    &--active {
+      border-color: $color-orange-light;
+      box-shadow: 0 0 16px rgb(249 188 77 / 35%);
+    }
+
+    &--placed:not(&--active) {
+      opacity: 0.5;
+    }
+  }
+
+  &__name {
+    min-width: 0;
+  }
+
+  &__size {
+    font-family: $font-pixel;
+    font-size: 12px;
+    color: $color-orange-light;
+  }
+}
+</style>

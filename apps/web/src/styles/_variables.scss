@@ -1,10 +1,19 @@
+$color-ink: #060a20;
 $color-bg: #0b1426;
 $color-panel: #12213d;
 $color-border: #2a4a7f;
-$color-text: #e8f1ff;
-$color-accent: #ff9a3c;
+$color-text: #dae4e8;
+$color-teal: #2b899a;
+$color-teal-light: #67c1c8;
+$color-teal-dark: #20596a;
+$color-orange: #e8842d;
+$color-orange-light: #f9bc4d;
+$color-accent: $color-orange-light;
+$color-red: #da3027;
+$color-red-light: #ff6b5f;
 $color-danger: #e5484d;
 $color-ok: #3fb68b;
 
 $cell-size: 32px;
 $font-pixel: 'Press Start 2P', monospace;
+$font-body: 'IBM Plex Mono', ui-monospace, 'Cascadia Mono', Consolas, monospace;

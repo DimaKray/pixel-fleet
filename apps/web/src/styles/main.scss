@@ -1,13 +1,7 @@
 @use 'variables' as *;
 
 :root {
-  --cell: 36px;
-}
-
-@media (width <= 480px) {
-  :root {
-    --cell: 26px;
-  }
+  --cell: 34px;
 }
 
 *,
@@ -16,58 +10,219 @@
   box-sizing: border-box;
 }
 
+html,
+body {
+  min-height: 100%;
+}
+
 body {
   margin: 0;
-  background: $color-bg;
+  background: $color-ink;
   color: $color-text;
-  font-family: $font-pixel;
-  font-size: 12px;
-  line-height: 1.6;
+  font-family: $font-body;
+  font-size: 15px;
+  line-height: 1.5;
 }
 
 h1,
 h2 {
   margin: 0;
+  font-family: $font-pixel;
+  font-weight: 400;
   line-height: 1.4;
+  text-transform: uppercase;
 }
 
 h1 {
-  font-size: 16px;
+  font-size: 20px;
+  color: $color-orange-light;
+  text-shadow: 3px 3px 0 $color-ink;
 }
 
 h2 {
-  font-size: 14px;
+  font-size: 12px;
+  color: $color-teal-light;
 }
 
-img,
-canvas {
+p {
+  margin: 0;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---------- сцена і верхня панель ---------- */
+
+.scene {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  background-size: cover;
+  background-position: center bottom;
   image-rendering: pixelated;
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgb(6 10 32 / 55%) 0%, rgb(6 10 32 / 90%) 100%);
+  }
+
+  &--menu::after {
+    background: linear-gradient(180deg, rgb(6 10 32 / 8%) 0%, rgb(6 10 32 / 72%) 100%);
+  }
 }
 
 .topbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 12px 16px;
-  border-bottom: 2px solid $color-border;
+  gap: 12px;
+  padding: 10px 20px;
+  background: rgb(6 10 32 / 78%);
+  border-bottom: 3px solid $color-teal-dark;
+  backdrop-filter: blur(4px);
 
   &__logo {
-    color: $color-accent;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-family: $font-pixel;
+    font-size: 14px;
+    color: $color-orange-light;
+    text-shadow: 2px 2px 0 $color-ink;
+    text-transform: uppercase;
+
+    img {
+      width: 28px;
+      height: 28px;
+      object-fit: contain;
+    }
   }
 }
 
-.panel {
-  max-width: 720px;
-  margin: 24px auto;
-  padding: 24px;
-  background: $color-panel;
-  border: 2px solid $color-border;
+/* ---------- рамка (панель із клепками) ---------- */
 
-  @media (width <= 480px) {
-    margin: 12px 8px;
-    padding: 12px;
+.screen {
+  display: flex;
+  justify-content: center;
+  padding: 16px;
+
+  @media (width <= 720px) {
+    padding: 8px;
   }
 }
+
+.frame {
+  --frame: 40px;
+
+  width: min(100%, 1100px);
+  padding: 8px 12px;
+  border: var(--frame) solid transparent;
+  border-image: url('/assets/ui/panel.png') 80 fill / var(--frame) round;
+
+  @media (width <= 720px) {
+    --frame: 26px;
+
+    padding: 4px 6px;
+  }
+}
+
+/* ---------- кнопки й поля ---------- */
+
+.btn {
+  --edge: 12px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 4px 10px;
+  font-family: $font-pixel;
+  font-size: 11px;
+  line-height: 1.2;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  color: $color-text;
+  background: transparent;
+  border: var(--edge) solid transparent;
+  border-image: url('/assets/ui/button.png') 32 fill / var(--edge) stretch;
+  cursor: pointer;
+
+  img {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+  }
+
+  &:hover:not(:disabled),
+  &--primary {
+    border-image-source: url('/assets/ui/button-hover.png');
+    color: $color-ink;
+
+    img {
+      filter: brightness(0.15);
+    }
+  }
+
+  &--primary:hover:not(:disabled) {
+    filter: brightness(1.15);
+  }
+
+  &--big {
+    min-height: 58px;
+    padding: 6px 18px;
+    font-size: 13px;
+  }
+
+  &--small {
+    min-height: 38px;
+    font-size: 10px;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  &:focus-visible {
+    outline: 3px solid $color-orange-light;
+    outline-offset: 2px;
+  }
+}
+
+.input {
+  width: 9em;
+  min-height: 44px;
+  padding: 6px 12px;
+  font-family: $font-pixel;
+  font-size: 14px;
+  letter-spacing: 0.25em;
+  text-align: center;
+  text-transform: uppercase;
+  color: $color-text;
+  background: rgb(6 10 32 / 85%);
+  border: 3px solid $color-teal-dark;
+
+  &::placeholder {
+    letter-spacing: 0.1em;
+    color: rgb(218 228 232 / 35%);
+  }
+
+  &:focus-visible {
+    outline: 3px solid $color-orange-light;
+    outline-offset: 2px;
+  }
+}
+
+/* ---------- розкладка ---------- */
 
 .stack {
   display: flex;
@@ -80,153 +235,100 @@ canvas {
   flex-wrap: wrap;
   gap: 8px;
   align-items: center;
-
-  &--between {
-    justify-content: space-between;
-  }
-}
-
-.btn {
-  padding: 8px 12px;
-  background: $color-accent;
-  color: $color-bg;
-  border: 2px solid $color-text;
-  font-family: inherit;
-  font-size: inherit;
-  cursor: pointer;
-
-  &:hover:not(:disabled) {
-    filter: brightness(1.1);
-  }
-
-  &:disabled {
-    opacity: 0.5;
-    cursor: not-allowed;
-  }
-
-  &--ghost {
-    background: transparent;
-    color: $color-text;
-    border-color: $color-border;
-  }
-
-  &:focus-visible {
-    outline: 2px solid $color-text;
-    outline-offset: 2px;
-  }
-}
-
-.input {
-  padding: 8px 12px;
-  width: 9em;
-  background: $color-bg;
-  color: $color-text;
-  border: 2px solid $color-border;
-  font-family: inherit;
-  font-size: inherit;
-  text-transform: uppercase;
-  letter-spacing: 0.2em;
-}
-
-.error {
-  margin: 0;
-  color: $color-danger;
 }
 
 .hint {
-  margin: 0;
+  font-size: 13px;
   opacity: 0.8;
 }
 
-.placement {
+.error {
+  color: $color-red-light;
+}
+
+.topline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 20px;
+  align-items: center;
+}
+
+.room {
   display: flex;
   flex-direction: column;
-  gap: 16px;
-}
+  gap: 4px;
 
-.actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
+  small {
+    font-family: $font-pixel;
+    font-size: 9px;
+    text-transform: uppercase;
+    color: $color-teal-light;
+  }
 
-.dock {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-
-  &__item {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    align-items: center;
-    padding: 6px 8px;
-    background: $color-bg;
-    color: $color-text;
-    border: 2px solid $color-border;
-    font-family: inherit;
-    font-size: 10px;
-    cursor: pointer;
-
-    img {
-      width: 80px;
-      height: 20px;
-      object-fit: contain;
-    }
-
-    &--active {
-      border-color: $color-accent;
-    }
-
-    &--placed:not(&--active) {
-      opacity: 0.45;
-    }
+  strong {
+    font-family: $font-pixel;
+    font-size: 22px;
+    font-weight: 400;
+    letter-spacing: 0.2em;
+    color: $color-orange-light;
+    text-shadow: 3px 3px 0 $color-ink;
   }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  * {
-    animation: none !important;
-    transition: none !important;
-  }
-}
-.panel--wide {
-  max-width: 860px;
+.presence {
+  display: inline-flex;
+  gap: 10px;
+  align-items: center;
+  margin-left: auto;
+  font-size: 13px;
 }
 
-.boards {
+.dot {
+  width: 12px;
+  height: 12px;
+  background: #65737d;
+  border: 2px solid $color-ink;
+
+  &--online {
+    background: $color-ok;
+  }
+
+  &--offline {
+    background: $color-orange;
+  }
+}
+
+.split {
+  display: grid;
+  grid-template-columns: auto minmax(260px, 1fr);
+  gap: 24px 32px;
+  align-items: start;
+
+  @media (width <= 900px) {
+    grid-template-columns: 1fr;
+    justify-items: center;
+  }
+}
+
+.divider {
   display: flex;
-  flex-wrap: wrap;
-  gap: 24px;
-  justify-content: center;
+  gap: 12px;
+  align-items: center;
+  font-size: 13px;
+  opacity: 0.85;
 
-  &__item {
-    display: flex;
-    flex-direction: column;
-    gap: 8px;
-    align-items: flex-start;
-
-    p {
-      margin: 0;
-    }
-  }
-}
-
-.status {
-  margin: 0;
-  padding: 8px 12px;
-  background: $color-bg;
-  border: 2px solid $color-border;
-
-  &--active {
-    border-color: $color-ok;
-    color: $color-ok;
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    height: 2px;
+    background: $color-teal-dark;
   }
 }
 
 .banner {
   position: relative;
-  width: min(100%, 480px);
+  width: min(100%, 520px);
   margin: 0 auto;
 
   img {
@@ -239,17 +341,40 @@ canvas {
     position: absolute;
     inset: 0;
     display: grid;
-    place-items: center;
-    padding: 0 18%;
+    padding: 0 20%;
+    font-family: $font-pixel;
+    font-size: 13px;
+    line-height: 1.5;
     text-align: center;
-    color: $color-text;
-    text-shadow: 2px 2px 0 $color-bg;
+    text-transform: uppercase;
+    text-shadow: 2px 2px 0 $color-ink;
+    place-items: center;
   }
 }
-.timer {
-  margin: 0;
 
-  &--low {
-    color: $color-danger;
+/* ---------- розмір клітинки: поле завжди вміщується в екран ---------- */
+
+.screen--lobby {
+  --cell: clamp(24px, calc((100vw - 120px) / 10), 44px);
+}
+
+.screen--game {
+  --cell: clamp(20px, calc((100vw - 120px) / 10), 40px);
+}
+
+@media (width >= 900px) {
+  .screen--lobby {
+    --cell: clamp(30px, min(calc((100vw - 540px) / 10), calc((100vh - 340px) / 10)), 56px);
+  }
+
+  .screen--game {
+    --cell: clamp(26px, min(calc((100vw - 250px) / 20), calc((100vh - 410px) / 10)), 52px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation: none !important;
+    transition: none !important;
   }
 }

@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router';
 import type { PlacedShip } from '@pixelfleet/engine';
 import BoardGrid from '@/components/BoardGrid.vue';
 import PlacementBoard from '@/components/PlacementBoard.vue';
+import { icons } from '@/lib/assets';
 import { useGameStore } from '@/stores/game';
 import type { ClientError } from '@/stores/game';
 
@@ -41,7 +42,7 @@ watch(
   },
 );
 
-// Обидва готові: переходимо до бою (екран бою зробимо в наступному кроці).
+// Обидва готові: переходимо до бою.
 watch(
   () => game.view?.phase,
   (phase) => {
@@ -85,31 +86,41 @@ function leave(): void {
 </script>
 
 <template>
-  <section v-if="loading" class="panel">{{ t('lobby.loading') }}</section>
+  <section v-if="loading" class="screen">
+    <div class="frame">{{ t('lobby.loading') }}</div>
+  </section>
 
-  <section v-else class="panel stack">
-    <header class="row row--between">
-      <h1>{{ t('lobby.title') }} {{ code }}</h1>
-      <span class="row">
-        <button type="button" class="btn btn--ghost" @click="copyInvite">
+  <section v-else class="screen screen--lobby">
+    <div class="frame stack">
+      <header class="topline">
+        <div class="room">
+          <small>{{ t('lobby.title') }}</small>
+          <strong>{{ code }}</strong>
+        </div>
+
+        <span class="presence" aria-live="polite">
+          <i class="dot" :class="`dot--${game.opponentPresence}`" />
+          {{ t(`presence.${game.opponentPresence}`) }}
+        </span>
+
+        <button type="button" class="btn btn--small" @click="copyInvite">
+          <img :src="icons.copy" alt="" />
           {{ copied ? t('lobby.copied') : t('lobby.copyLink') }}
         </button>
-        <button type="button" class="btn btn--ghost" @click="leave">{{ t('lobby.leave') }}</button>
-      </span>
-    </header>
+        <button type="button" class="btn btn--small" @click="leave">{{ t('lobby.leave') }}</button>
+      </header>
 
-    <p aria-live="polite">{{ t(`presence.${game.opponentPresence}`) }}</p>
+      <PlacementBoard
+        v-if="game.view && !game.view.ownBoard"
+        :busy="busy"
+        :error-text="errorText"
+        @ready="submit"
+      />
 
-    <PlacementBoard
-      v-if="game.view && !game.view.ownBoard"
-      :busy="busy"
-      :error-text="errorText"
-      @ready="submit"
-    />
-
-    <template v-else-if="game.view?.ownBoard">
-      <BoardGrid :label="t('board.own')" :ships="game.view.ownBoard.ships" />
-      <p aria-live="polite">{{ waitText }}</p>
-    </template>
+      <section v-else-if="game.view?.ownBoard" class="split">
+        <BoardGrid :label="t('board.own')" :ships="game.view.ownBoard.ships" />
+        <p aria-live="polite">{{ waitText }}</p>
+      </section>
+    </div>
   </section>
 </template>
