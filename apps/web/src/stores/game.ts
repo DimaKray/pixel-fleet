@@ -11,6 +11,9 @@ import type {
 } from '@pixelfleet/protocol';
 import { socket } from '@/lib/socket';
 import { useSessionStore } from './session';
+import { soundsForTransition } from '@/lib/cues';
+import { playCues } from '@/lib/sound';
+import { useSettingsStore } from './settings';
 
 export type ClientError = WireError | { code: 'network' };
 export type SessionResult = { ok: true; code: string } | { ok: false; error: ClientError };
@@ -56,6 +59,7 @@ function ensureConnected(): Promise<boolean> {
 
 export const useGameStore = defineStore('game', () => {
   const session = useSessionStore();
+  const settings = useSettingsStore();
 
   const connected = ref(socket.connected);
   const code = ref<string | null>(null);
@@ -129,6 +133,7 @@ export const useGameStore = defineStore('game', () => {
   }
 
   socket.on('game:state', (next) => {
+    playCues(soundsForTransition(view.value, next), settings.muted);
     view.value = next;
   });
   socket.on('room:meta', (meta) => {

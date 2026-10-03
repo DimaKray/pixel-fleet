@@ -43,7 +43,10 @@ onMounted(async () => {
   loading.value = false;
 });
 
-onUnmounted(() => clearInterval(ticker));
+onUnmounted(() => {
+  clearInterval(ticker);
+  clearTimeout(shakeTimer);
+});
 
 // Сесію втрачено: назад на головну.
 watch(
@@ -90,6 +93,19 @@ const enemyShips = computed(
 const ownShips = computed(() => view.value?.ownBoard?.ships ?? []);
 const ownShots = computed(() => view.value?.ownBoard?.shots ?? []);
 const enemyShots = computed(() => view.value?.opponentBoard?.shots ?? []);
+
+// Поле трясеться, коли в нас влучили або потопили корабель.
+const shaking = ref(false);
+let shakeTimer: ReturnType<typeof setTimeout> | undefined;
+watch(
+  () => ownShots.value.length,
+  (length, previous) => {
+    if (length <= previous || ownShots.value.at(-1)?.outcome === 'miss') return;
+    shaking.value = true;
+    clearTimeout(shakeTimer);
+    shakeTimer = setTimeout(() => (shaking.value = false), 450);
+  },
+);
 
 const ownSunk = computed(() =>
   ownShips.value.filter((ship) => isSunk(ship, ownShots.value)).map((ship) => ship.type),
@@ -180,7 +196,7 @@ function backToMenu(): void {
       </div>
 
       <div class="sides">
-        <section class="side">
+        <section class="side" :class="{ 'side--shake': shaking }">
           <h2>{{ t('board.own') }}</h2>
           <BoardGrid
             :label="t('board.own')"
@@ -297,5 +313,32 @@ function backToMenu(): void {
   flex-direction: column;
   gap: 10px;
   align-items: flex-start;
+
+  &--shake {
+    animation: shake 0.45s linear;
+  }
+}
+
+@keyframes shake {
+  0%,
+  100% {
+    transform: translate(0);
+  }
+
+  20% {
+    transform: translate(-6px, 2px);
+  }
+
+  40% {
+    transform: translate(5px, -3px);
+  }
+
+  60% {
+    transform: translate(-4px, 3px);
+  }
+
+  80% {
+    transform: translate(3px, -2px);
+  }
 }
 </style>

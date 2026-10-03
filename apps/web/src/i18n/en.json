@@ -67,6 +67,10 @@
     "submarine": "Submarine",
     "destroyer": "Destroyer"
   },
+  "sound": {
+    "on": "Mute sound",
+    "off": "Unmute sound"
+  },
   "errors": {
     "invalid_payload": "Invalid data",
     "not_in_room": "You are not in a room",
