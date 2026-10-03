@@ -117,7 +117,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKey));
             :aria-pressed="selected === entry.type"
             @click="select(entry.type)"
           >
-            <img :src="shipSprites[entry.type].src" alt="" />
+            <img :src="shipSprites[entry.type].side" alt="" />
             <span class="dock__name">{{ t(`ships.${entry.type}`) }}</span>
             <span class="dock__size">{{ isPlaced(entry.type) ? '✓' : entry.size }}</span>
           </button>
@@ -180,7 +180,6 @@ onUnmounted(() => window.removeEventListener('keydown', onKey));
       width: 112px;
       height: 30px;
       object-fit: contain;
-      image-rendering: pixelated;
     }
 
     &:hover {

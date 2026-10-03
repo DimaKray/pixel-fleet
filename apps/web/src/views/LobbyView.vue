@@ -5,6 +5,7 @@ import { useRouter } from 'vue-router';
 import type { PlacedShip } from '@pixelfleet/engine';
 import BoardGrid from '@/components/BoardGrid.vue';
 import PlacementBoard from '@/components/PlacementBoard.vue';
+import PresenceBadge from '@/components/PresenceBadge.vue';
 import { icons } from '@/lib/assets';
 import { useGameStore } from '@/stores/game';
 import type { ClientError } from '@/stores/game';
@@ -98,10 +99,7 @@ function leave(): void {
           <strong>{{ code }}</strong>
         </div>
 
-        <span class="presence" aria-live="polite">
-          <i class="dot" :class="`dot--${game.opponentPresence}`" />
-          {{ t(`presence.${game.opponentPresence}`) }}
-        </span>
+        <PresenceBadge :code="code" :you="game.player ?? 'a'" :status="game.opponentPresence" />
 
         <button type="button" class="btn btn--small" @click="copyInvite">
           <img :src="icons.copy" alt="" />

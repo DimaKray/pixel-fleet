@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { BOARD_SIZE, inBounds, isSunk, shipCells } from '@pixelfleet/engine';
 import type { Coord, PlacedShip, Shot } from '@pixelfleet/engine';
 import { markers, sea, shipSprites } from '@/lib/assets';
@@ -52,6 +52,26 @@ function markerSrc(shot: Shot): string {
   return sunkCells.value.has(`${shot.at.x},${shot.at.y}`) ? markers.sunk : markers.hit;
 }
 
+const hovered = ref<Coord | null>(null);
+const shotKeys = computed(() => new Set(props.shots.map((shot) => `${shot.at.x},${shot.at.y}`)));
+
+/** Приціл стоїть на клітинці під курсором лише на полі суперника, коли можна стріляти. */
+const reticle = computed(() => {
+  const cell = hovered.value;
+  if (!props.aim || !props.interactive || !cell) return null;
+  return { cell, used: shotKeys.value.has(`${cell.x},${cell.y}`), name: cellName(cell) };
+});
+
+function onEnter(cell: Coord): void {
+  hovered.value = cell;
+  emit('hover', cell);
+}
+
+function onLeave(): void {
+  hovered.value = null;
+  emit('hover', null);
+}
+
 /** Кадри води передаємо в CSS змінними, щоб анімувати їх у keyframes. */
 const seaVars = {
   '--sea-0': `url(${sea.frames[0]})`,
@@ -91,24 +111,20 @@ const previewCells = computed(() =>
       <span v-for="n in NUMBERS" :key="n">{{ n }}</span>
     </div>
 
-    <div
-      class="board"
-      role="group"
-      :aria-label="label"
-      :style="seaVars"
-      @mouseleave="emit('hover', null)"
-    >
+    <div class="board" role="group" :aria-label="label" :style="seaVars" @mouseleave="onLeave">
       <div class="board__cells">
         <button
           v-for="cell in cells"
           :key="`${cell.x}-${cell.y}`"
           type="button"
           class="board__cell"
+          :class="{ 'board__cell--used': shotKeys.has(`${cell.x},${cell.y}`) }"
           :disabled="!interactive"
           :aria-label="cellName(cell)"
           @click="emit('cell', cell)"
-          @mouseenter="emit('hover', cell)"
-          @focus="emit('hover', cell)"
+          @mouseenter="onEnter(cell)"
+          @focus="onEnter(cell)"
+          @blur="hovered = null"
         />
       </div>
 
@@ -138,6 +154,24 @@ const previewCells = computed(() =>
         :class="preview?.valid ? 'board__preview--ok' : 'board__preview--bad'"
         :style="position(cell)"
       />
+
+      <div
+        v-if="reticle"
+        :key="`${reticle.cell.x}-${reticle.cell.y}`"
+        class="board__reticle"
+        :class="{ 'board__reticle--used': reticle.used }"
+        :style="position(reticle.cell)"
+        aria-hidden="true"
+      >
+        <i class="board__reticle-ring" />
+        <i class="board__reticle-core" />
+        <span
+          class="board__reticle-label"
+          :class="{ 'board__reticle-label--below': reticle.cell.y === 0 }"
+        >
+          {{ reticle.used ? '✕' : reticle.name }}
+        </span>
+      </div>
     </div>
   </div>
 </template>
@@ -231,7 +265,9 @@ const previewCells = computed(() =>
   padding: 0;
   background: transparent;
   border: 1px solid rgb(218 228 232 / 12%);
-  cursor: crosshair;
+  cursor:
+    url('/assets/cursors/pointer.png') 11 2,
+    pointer;
 
   &:hover:not(:disabled) {
     background: rgb(249 188 77 / 22%);
@@ -243,15 +279,125 @@ const previewCells = computed(() =>
   }
 
   &:disabled {
-    cursor: default;
+    cursor:
+      url('/assets/cursors/arrow.png') 1 1,
+      default;
   }
 }
 
-/* Приціл на клітинці суперника під курсором. */
-.boardwrap--aim .board__cell:hover:not(:disabled) {
+/* Поле суперника: свій приціл замість курсора і «захоплення цілі» на клітинці. */
+.boardwrap--aim .board__cell:not(:disabled) {
+  cursor:
+    url('/assets/cursors/crosshair.png') 16 16,
+    crosshair;
+
+  &:hover {
+    background: rgb(255 107 95 / 14%);
+  }
+}
+
+.boardwrap--aim .board__cell--used:not(:disabled) {
+  cursor:
+    url('/assets/cursors/arrow.png') 1 1,
+    not-allowed;
+
+  &:hover {
+    background: rgb(218 228 232 / 10%);
+  }
+}
+
+.board__reticle {
+  position: absolute;
+  z-index: 3;
+  width: var(--cell);
+  height: var(--cell);
+  color: $color-red-light;
+  pointer-events: none;
   background:
-    url('/assets/icons/target.png') center / 62% no-repeat,
-    rgb(249 188 77 / 22%);
+    linear-gradient(currentcolor, currentcolor) top left / 32% 3px no-repeat,
+    linear-gradient(currentcolor, currentcolor) top left / 3px 32% no-repeat,
+    linear-gradient(currentcolor, currentcolor) top right / 32% 3px no-repeat,
+    linear-gradient(currentcolor, currentcolor) top right / 3px 32% no-repeat,
+    linear-gradient(currentcolor, currentcolor) bottom left / 32% 3px no-repeat,
+    linear-gradient(currentcolor, currentcolor) bottom left / 3px 32% no-repeat,
+    linear-gradient(currentcolor, currentcolor) bottom right / 32% 3px no-repeat,
+    linear-gradient(currentcolor, currentcolor) bottom right / 3px 32% no-repeat;
+  filter: drop-shadow(0 0 4px rgb(255 107 95 / 70%));
+  animation: lock 0.22s ease-out;
+
+  &-ring {
+    position: absolute;
+    inset: 20%;
+    border: 2px dashed currentcolor;
+    border-radius: 50%;
+    animation: spin 2.4s linear infinite;
+  }
+
+  &-core {
+    position: absolute;
+    inset: 46%;
+    background: $color-orange-light;
+    animation: blink 0.7s steps(2) infinite;
+  }
+
+  &-label {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    left: 50%;
+    padding: 2px 5px;
+    font-family: $font-pixel;
+    font-size: 9px;
+    line-height: 1.4;
+    color: $color-orange-light;
+    white-space: nowrap;
+    background: $color-ink;
+    translate: -50% 0;
+
+    &--below {
+      top: calc(100% + 6px);
+      bottom: auto;
+    }
+  }
+
+  /* Сюди вже стріляли: сірий приціл без анімації. */
+  &--used {
+    color: #9aa7ad;
+    filter: none;
+    animation: none;
+
+    .board__reticle-ring,
+    .board__reticle-core {
+      display: none;
+    }
+
+    .board__reticle-label {
+      color: #9aa7ad;
+    }
+  }
+}
+
+@keyframes lock {
+  0% {
+    opacity: 0;
+    scale: 1.7;
+  }
+
+  100% {
+    opacity: 1;
+    scale: 1;
+  }
+}
+
+@keyframes spin {
+  to {
+    rotate: 360deg;
+  }
+}
+
+@keyframes blink {
+  50% {
+    opacity: 0.2;
+  }
 }
 
 .board__ship,

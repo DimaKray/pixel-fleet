@@ -138,6 +138,13 @@ const RECIPES: Record<SoundName, (a: Audio, t: number) => void> = {
   deny(a, t) {
     tone(a, { type: 'square', from: 150, to: 100, start: t, duration: 0.14, gain: 0.1 });
   },
+  join(a, t) {
+    tone(a, { type: 'triangle', from: 523, start: t, duration: 0.1, gain: 0.2 });
+    tone(a, { type: 'triangle', from: 784, start: t + 0.1, duration: 0.18, gain: 0.2 });
+  },
+  aim(a, t) {
+    tone(a, { type: 'square', from: 1100, start: t, duration: 0.02, gain: 0.03 });
+  },
 };
 
 export function playCues(cues: readonly SoundCue[], muted: boolean): void {

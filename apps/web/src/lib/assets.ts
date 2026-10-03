@@ -2,13 +2,41 @@ import type { ShipType } from '@pixelfleet/engine';
 
 const base = '/assets';
 
-/** Кораблі намальовані збоку, носом праворуч. cells — довжина в клітинках, ratio — ширина/висота файлу. */
-export const shipSprites: Record<ShipType, { src: string; cells: number; ratio: number }> = {
-  carrier: { src: `${base}/ships/carrier.png`, cells: 5, ratio: 6.9 },
-  battleship: { src: `${base}/ships/battleship.png`, cells: 4, ratio: 5.2 },
-  cruiser: { src: `${base}/ships/cruiser.png`, cells: 3, ratio: 5.5 },
-  submarine: { src: `${base}/ships/submarine.png`, cells: 3, ratio: 6.3 },
-  destroyer: { src: `${base}/ships/destroyer.png`, cells: 2, ratio: 4.3 },
+/** `src` — вигляд зверху (для поля), `side` — вигляд збоку (для списків). */
+export const shipSprites: Record<
+  ShipType,
+  { src: string; side: string; cells: number; ratio: number }
+> = {
+  carrier: {
+    src: `${base}/ships/carrier.png`,
+    side: `${base}/ships/side/carrier.png`,
+    cells: 5,
+    ratio: 6.9,
+  },
+  battleship: {
+    src: `${base}/ships/battleship.png`,
+    side: `${base}/ships/side/battleship.png`,
+    cells: 4,
+    ratio: 5.2,
+  },
+  cruiser: {
+    src: `${base}/ships/cruiser.png`,
+    side: `${base}/ships/side/cruiser.png`,
+    cells: 3,
+    ratio: 5.5,
+  },
+  submarine: {
+    src: `${base}/ships/submarine.png`,
+    side: `${base}/ships/side/submarine.png`,
+    cells: 3,
+    ratio: 6.3,
+  },
+  destroyer: {
+    src: `${base}/ships/destroyer.png`,
+    side: `${base}/ships/side/destroyer.png`,
+    cells: 2,
+    ratio: 4.3,
+  },
 };
 
 export const markers = {

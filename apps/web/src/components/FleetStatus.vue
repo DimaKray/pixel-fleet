@@ -15,7 +15,7 @@ defineProps<{ label: string; sunk: readonly ShipType[] }>();
       :class="{ 'fleet__ship--sunk': sunk.includes(entry.type) }"
     >
       <img
-        :src="shipSprites[entry.type].src"
+        :src="shipSprites[entry.type].side"
         alt=""
         :style="{ width: `calc(var(--cell) * ${entry.size * 0.45})` }"
       />
@@ -36,7 +36,6 @@ defineProps<{ label: string; sunk: readonly ShipType[] }>();
   &__ship img {
     display: block;
     height: auto;
-    image-rendering: pixelated;
     filter: drop-shadow(0 2px 0 rgb(0 0 0 / 40%));
   }
 

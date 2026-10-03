@@ -11,7 +11,9 @@ export type SoundName =
   | 'lose'
   | 'click'
   | 'place'
-  | 'deny';
+  | 'deny'
+  | 'join'
+  | 'aim';
 
 export interface SoundCue {
   name: SoundName;

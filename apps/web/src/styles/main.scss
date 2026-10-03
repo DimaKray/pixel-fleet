@@ -434,3 +434,32 @@ p {
     translate: 0 3px;
   }
 }
+
+/* ---------- курсори ---------- */
+
+html {
+  cursor:
+    url('/assets/cursors/arrow.png') 1 1,
+    default;
+}
+
+a,
+button,
+summary,
+select,
+label[for],
+[role='button'] {
+  cursor:
+    url('/assets/cursors/pointer.png') 11 2,
+    pointer;
+}
+
+button:disabled {
+  cursor:
+    url('/assets/cursors/arrow.png') 1 1,
+    not-allowed;
+}
+
+input {
+  cursor: text;
+}

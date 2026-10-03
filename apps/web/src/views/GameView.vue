@@ -5,17 +5,21 @@ import { useRouter } from 'vue-router';
 import { isSunk } from '@pixelfleet/engine';
 import type { Coord, ShipType } from '@pixelfleet/engine';
 import BoardGrid from '@/components/BoardGrid.vue';
+import ConfirmDialog from '@/components/ConfirmDialog.vue';
 import FleetStatus from '@/components/FleetStatus.vue';
+import PresenceBadge from '@/components/PresenceBadge.vue';
 import { icons, ui } from '@/lib/assets';
 import { gameStatus } from '@/lib/status';
 import { useGameStore } from '@/stores/game';
 import type { ClientError } from '@/stores/game';
+import { useSettingsStore } from '@/stores/settings';
 
 const props = defineProps<{ code: string }>();
 
 const { t } = useI18n();
 const router = useRouter();
 const game = useGameStore();
+const settings = useSettingsStore();
 
 const loading = ref(true);
 const busy = ref(false);
@@ -153,8 +157,20 @@ async function onFire(cell: Coord): Promise<void> {
   if (!reply.ok) error.value = reply.error;
 }
 
+const confirmingResign = ref(false);
+
+// Гра закінчилась, поки вікно відкрите (суперник здався чи програв): закриваємо його.
+watch(finished, (isFinished) => {
+  if (isFinished) confirmingResign.value = false;
+});
+
+/** Тихий «клац», коли приціл переходить на іншу клітинку. */
+function onAim(cell: Coord | null): void {
+  if (cell && canFire.value) settings.play('aim');
+}
+
 async function resign(): Promise<void> {
-  if (!window.confirm(t('game.resignConfirm'))) return;
+  confirmingResign.value = false;
   error.value = null;
   const reply = await game.resign();
   if (!reply.ok) error.value = reply.error;
@@ -185,12 +201,14 @@ function backToMenu(): void {
           <strong>{{ code }}</strong>
         </div>
 
-        <span class="presence" aria-live="polite">
-          <i class="dot" :class="`dot--${game.opponentPresence}`" />
-          {{ t(`presence.${game.opponentPresence}`) }}
-        </span>
+        <PresenceBadge :code="code" :you="game.player ?? 'a'" :status="game.opponentPresence" />
 
-        <button v-if="!finished" type="button" class="btn btn--small" @click="resign">
+        <button
+          v-if="!finished"
+          type="button"
+          class="btn btn--small"
+          @click="confirmingResign = true"
+        >
           <img :src="icons.surrender" alt="" />{{ t('game.resign') }}
         </button>
       </header>
@@ -233,6 +251,7 @@ function backToMenu(): void {
             :active="status === 'your_turn'"
             aim
             @cell="onFire"
+            @hover="onAim"
           />
           <FleetStatus :label="enemyFleetLabel" :sunk="enemySunk" />
         </section>
@@ -259,6 +278,16 @@ function backToMenu(): void {
         </div>
       </div>
     </div>
+
+    <ConfirmDialog
+      :open="confirmingResign"
+      :title="t('game.resignConfirm')"
+      :text="t('game.resignText')"
+      :confirm-label="t('game.resign')"
+      :cancel-label="t('game.resignCancel')"
+      @confirm="resign"
+      @cancel="confirmingResign = false"
+    />
 
     <Transition name="toast">
       <div v-if="toast" class="toast" :class="`toast--${toast.side}`" role="status">

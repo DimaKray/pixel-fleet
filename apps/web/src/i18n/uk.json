@@ -59,6 +59,8 @@
     "rematch": "Реванш",
     "sunkEnemy": "Потоплено: {ship}!",
     "sunkOwn": "Втрачено: {ship}",
+    "resignText": "Партію буде зараховано як поразку.",
+    "resignCancel": "Лишитися",
     "rematchWaiting": "Чекаємо відповіді суперника…",
     "rematchOffered": "Суперник пропонує реванш"
   },

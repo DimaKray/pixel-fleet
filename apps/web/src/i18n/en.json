@@ -59,6 +59,8 @@
     "rematch": "Rematch",
     "sunkEnemy": "Sunk: {ship}!",
     "sunkOwn": "Lost: {ship}",
+    "resignText": "The match will count as a loss.",
+    "resignCancel": "Keep playing",
     "rematchWaiting": "Waiting for the opponent…",
     "rematchOffered": "Opponent wants a rematch"
   },
