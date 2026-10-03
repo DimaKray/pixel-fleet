@@ -35,6 +35,23 @@
   "board": {
     "own": "Your board"
   },
+  "game": {
+    "title": "Battle",
+    "opponentBoard": "Enemy waters",
+    "yourFleet": "Your ships",
+    "enemyFleet": "Enemy ships",
+    "remaining": "left",
+    "waiting": "Waiting for placement…",
+    "your_turn": "Your turn! Click the enemy waters",
+    "opponent_turn": "Opponent's turn…",
+    "won": "Victory!",
+    "lost": "Defeat",
+    "won_resigned": "Opponent resigned. Victory!",
+    "lost_resigned": "You resigned",
+    "resign": "Resign",
+    "resignConfirm": "Really resign?",
+    "backToMenu": "Back to menu"
+  },
   "ships": {
     "carrier": "Carrier",
     "battleship": "Battleship",

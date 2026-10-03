@@ -35,6 +35,23 @@
   "board": {
     "own": "Твоє поле"
   },
+  "game": {
+    "title": "Бій",
+    "opponentBoard": "Поле суперника",
+    "yourFleet": "Твої кораблі",
+    "enemyFleet": "Кораблі суперника",
+    "remaining": "залишилось",
+    "waiting": "Чекаємо розстановку…",
+    "your_turn": "Твій хід! Клікни по полю суперника",
+    "opponent_turn": "Хід суперника…",
+    "won": "Перемога!",
+    "lost": "Поразка",
+    "won_resigned": "Суперник здався. Перемога!",
+    "lost_resigned": "Ти здався",
+    "resign": "Здатися",
+    "resignConfirm": "Точно здатися?",
+    "backToMenu": "У меню"
+  },
   "ships": {
     "carrier": "Авіаносець",
     "battleship": "Лінкор",
