@@ -1,6 +1,60 @@
 {
   "home": {
     "title": "Battleship",
-    "subtitle": "Create a room and invite a friend"
+    "subtitle": "Create a room and invite a friend",
+    "create": "Create room",
+    "codeLabel": "Or enter a room code",
+    "codePlaceholder": "CODE",
+    "join": "Join",
+    "loading": "Connecting…"
+  },
+  "lobby": {
+    "title": "Room",
+    "copyLink": "Copy invite link",
+    "copied": "Copied",
+    "leave": "Leave",
+    "loading": "Loading…",
+    "waitEmpty": "Waiting for an opponent. Send them the code or the link.",
+    "waitPlacing": "Opponent is placing their ships…",
+    "waitOffline": "Opponent lost connection. Waiting for them to return…"
+  },
+  "presence": {
+    "empty": "No opponent yet",
+    "online": "Opponent is in the room",
+    "offline": "Opponent is offline"
+  },
+  "placement": {
+    "title": "Place your fleet",
+    "hint": "Pick a ship, click a cell. R rotates the ship. Click a placed ship to pick it up.",
+    "rotate": "Rotate (R)",
+    "random": "Random",
+    "reset": "Reset",
+    "ready": "Ready",
+    "sending": "Sending…"
+  },
+  "board": {
+    "own": "Your board"
+  },
+  "ships": {
+    "carrier": "Carrier",
+    "battleship": "Battleship",
+    "cruiser": "Cruiser",
+    "submarine": "Submarine",
+    "destroyer": "Destroyer"
+  },
+  "errors": {
+    "invalid_payload": "Invalid data",
+    "not_in_room": "You are not in a room",
+    "already_in_room": "You are already in a room",
+    "room_not_found": "Room not found",
+    "room_full": "The room already has two players",
+    "unknown_token": "Session lost. Create a new room",
+    "wrong_phase": "Not possible right now",
+    "already_placed": "Fleet is already placed",
+    "not_your_turn": "It's not your turn",
+    "out_of_bounds": "Out of bounds",
+    "already_shot": "You already shot there",
+    "invalid_placement": "The placement breaks the rules",
+    "network": "No connection to the server"
   }
 }

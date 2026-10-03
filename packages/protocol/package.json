@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "@pixelfleet/engine": "*",
+    "@pixelfleet/protocol": "*",
     "zod": "^3.25.76"
   }
 }

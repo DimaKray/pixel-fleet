@@ -1,14 +1,37 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 
-/** Тут житиме токен гравця для реконнекту (етап 5). */
-export const useSessionStore = defineStore('session', () => {
-  const playerToken = ref<string | null>(sessionStorage.getItem('playerToken'));
+const KEY = 'pf:token';
 
-  function setToken(token: string) {
+function read(): string | null {
+  try {
+    return sessionStorage.getItem(KEY);
+  } catch {
+    return null;
+  }
+}
+
+/** Токен гравця для реконнекту. sessionStorage окремий для кожної вкладки. */
+export const useSessionStore = defineStore('session', () => {
+  const playerToken = ref<string | null>(read());
+
+  function setToken(token: string): void {
     playerToken.value = token;
-    sessionStorage.setItem('playerToken', token);
+    try {
+      sessionStorage.setItem(KEY, token);
+    } catch {
+      // приватний режим: тоді реконнект після перезавантаження не працюватиме
+    }
   }
 
-  return { playerToken, setToken };
+  function clearToken(): void {
+    playerToken.value = null;
+    try {
+      sessionStorage.removeItem(KEY);
+    } catch {
+      // ігноруємо
+    }
+  }
+
+  return { playerToken, setToken, clearToken };
 });

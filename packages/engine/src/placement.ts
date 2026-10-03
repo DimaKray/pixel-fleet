@@ -58,3 +58,9 @@ export function validatePlacement(ships: readonly PlacedShip[]): PlacementResult
 
   return errors.length === 0 ? { ok: true } : { ok: false, errors };
 }
+/** Чи можна поставити корабель, якщо `others` вже стоять (без дотиків і перетинів). */
+export function canPlaceShip(others: readonly PlacedShip[], ship: PlacedShip): boolean {
+  const cells = shipCells(ship);
+  if (!cells.every(inBounds)) return false;
+  return others.every((other) => minDistance(cells, shipCells(other)) >= 2);
+}
