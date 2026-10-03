@@ -378,3 +378,59 @@ p {
     transition: none !important;
   }
 }
+
+/* ---------- анімації ---------- */
+
+.scene {
+  animation: drift 40s ease-in-out infinite alternate;
+}
+
+@keyframes drift {
+  from {
+    transform: scale(1);
+  }
+
+  to {
+    transform: scale(1.06);
+  }
+}
+
+.btn {
+  transition: transform 0.08s;
+
+  &:hover:not(:disabled) {
+    transform: translateY(-2px);
+  }
+
+  &:active:not(:disabled) {
+    transform: translateY(2px);
+  }
+}
+
+.page-enter-active,
+.page-leave-active {
+  transition:
+    opacity 0.25s,
+    translate 0.25s;
+}
+
+.page-enter-from {
+  opacity: 0;
+  translate: 0 14px;
+}
+
+.page-leave-to {
+  opacity: 0;
+  translate: 0 -8px;
+}
+
+.topbar__logo img,
+.hero__captain {
+  animation: bob 3.2s ease-in-out infinite;
+}
+
+@keyframes bob {
+  50% {
+    translate: 0 3px;
+  }
+}

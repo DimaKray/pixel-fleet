@@ -1,5 +1,7 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
+import type { SoundName } from '@/lib/cues';
+import { playCues } from '@/lib/sound';
 
 const KEY = 'pf:muted';
 
@@ -27,5 +29,10 @@ export const useSettingsStore = defineStore('settings', () => {
     write(muted.value);
   }
 
-  return { muted, toggleMute };
+  /** Один короткий звук інтерфейсу (клік, постановка корабля тощо). */
+  function play(name: SoundName): void {
+    playCues([{ name, delayMs: 0 }], muted.value);
+  }
+
+  return { muted, toggleMute, play };
 });

@@ -1,6 +1,17 @@
 import type { GameView, Shot, ShotOutcome } from '@pixelfleet/engine';
 
-export type SoundName = 'fire' | 'splash' | 'hit' | 'sunk' | 'turn' | 'start' | 'win' | 'lose';
+export type SoundName =
+  | 'fire'
+  | 'splash'
+  | 'hit'
+  | 'sunk'
+  | 'turn'
+  | 'start'
+  | 'win'
+  | 'lose'
+  | 'click'
+  | 'place'
+  | 'deny';
 
 export interface SoundCue {
   name: SoundName;

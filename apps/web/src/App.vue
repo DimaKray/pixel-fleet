@@ -42,6 +42,10 @@ function toggleLocale() {
     </span>
   </header>
   <main>
-    <RouterView />
+    <RouterView v-slot="{ Component }">
+      <Transition name="page" mode="out-in">
+        <component :is="Component" />
+      </Transition>
+    </RouterView>
   </main>
 </template>

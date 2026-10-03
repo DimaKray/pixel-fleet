@@ -57,6 +57,8 @@
     "resignConfirm": "Really resign?",
     "backToMenu": "Back to menu",
     "rematch": "Rematch",
+    "sunkEnemy": "Sunk: {ship}!",
+    "sunkOwn": "Lost: {ship}",
     "rematchWaiting": "Waiting for the opponent…",
     "rematchOffered": "Opponent wants a rematch"
   },

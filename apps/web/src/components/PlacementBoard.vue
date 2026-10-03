@@ -6,11 +6,13 @@ import type { Coord, Orientation, PlacedShip, ShipType } from '@pixelfleet/engin
 import BoardGrid from '@/components/BoardGrid.vue';
 import { icons, shipSprites } from '@/lib/assets';
 import { isComplete, nextUnplaced, placeShip, randomFleet, without } from '@/lib/draft';
+import { useSettingsStore } from '@/stores/settings';
 
 defineProps<{ busy?: boolean; errorText?: string }>();
 const emit = defineEmits<{ ready: [ships: PlacedShip[]] }>();
 
 const { t } = useI18n();
+const settings = useSettingsStore();
 
 const draft = ref<PlacedShip[]>([]);
 const selected = ref<ShipType | null>(nextUnplaced([]));
@@ -47,7 +49,11 @@ function onCell(cell: Coord): void {
       origin: cell,
       orientation: orientation.value,
     });
-    if (!next) return;
+    if (!next) {
+      settings.play('deny');
+      return;
+    }
+    settings.play('place');
     draft.value = next;
     selected.value = nextUnplaced(next);
     return;
@@ -174,6 +180,7 @@ onUnmounted(() => window.removeEventListener('keydown', onKey));
       width: 112px;
       height: 30px;
       object-fit: contain;
+      image-rendering: pixelated;
     }
 
     &:hover {

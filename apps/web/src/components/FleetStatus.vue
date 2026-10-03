@@ -36,6 +36,7 @@ defineProps<{ label: string; sunk: readonly ShipType[] }>();
   &__ship img {
     display: block;
     height: auto;
+    image-rendering: pixelated;
     filter: drop-shadow(0 2px 0 rgb(0 0 0 / 40%));
   }
 

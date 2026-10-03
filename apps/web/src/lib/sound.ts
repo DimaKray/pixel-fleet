@@ -128,6 +128,16 @@ const RECIPES: Record<SoundName, (a: Audio, t: number) => void> = {
       }),
     );
   },
+  click(a, t) {
+    tone(a, { type: 'square', from: 620, to: 420, start: t, duration: 0.05, gain: 0.08 });
+  },
+  place(a, t) {
+    noise(a, { filter: 'lowpass', from: 900, to: 200, start: t, duration: 0.12, gain: 0.35 });
+    tone(a, { type: 'sine', from: 150, to: 80, start: t, duration: 0.12, gain: 0.4 });
+  },
+  deny(a, t) {
+    tone(a, { type: 'square', from: 150, to: 100, start: t, duration: 0.14, gain: 0.1 });
+  },
 };
 
 export function playCues(cues: readonly SoundCue[], muted: boolean): void {
@@ -137,4 +147,82 @@ export function playCues(cues: readonly SoundCue[], muted: boolean): void {
 
   const now = a.ctx.currentTime;
   for (const cue of cues) RECIPES[cue.name](a, now + cue.delayMs / 1000);
+}
+
+/** Пауза, коли вкладка прихована, щоб море не шуміло у фоні. */
+export function setAudioActive(active: boolean): void {
+  if (!audio) return;
+  void (active ? audio.ctx.resume() : audio.ctx.suspend());
+}
+
+interface Ambience {
+  master: GainNode;
+  stop: () => void;
+}
+
+let ambience: Ambience | null = null;
+
+/** Фон: шум хвиль, що повільно наростає й стихає. Також синтезований. */
+export function startAmbience(): void {
+  if (ambience) return;
+  const a = getAudio();
+  if (!a) return;
+  const { ctx } = a;
+
+  // 6 секунд коричневого шуму по колу; краї згладжуємо, щоб не було клацання на стику.
+  const length = Math.floor(ctx.sampleRate * 6);
+  const buffer = ctx.createBuffer(1, length, ctx.sampleRate);
+  const data = buffer.getChannelData(0);
+  const edge = Math.floor(ctx.sampleRate * 0.4);
+  let last = 0;
+  for (let i = 0; i < length; i++) {
+    last = (last + 0.02 * (Math.random() * 2 - 1)) / 1.02;
+    const fade = Math.min(1, i / edge, (length - i) / edge);
+    data[i] = last * 3.5 * fade;
+  }
+
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+  source.loop = true;
+
+  const filter = ctx.createBiquadFilter();
+  filter.type = 'lowpass';
+  filter.frequency.value = 700;
+
+  // Повільний LFO змінює гучність: хвиля набігає й відступає.
+  const swell = ctx.createGain();
+  swell.gain.value = 0.6;
+  const lfo = ctx.createOscillator();
+  lfo.frequency.value = 0.11;
+  const depth = ctx.createGain();
+  depth.gain.value = 0.4;
+  lfo.connect(depth).connect(swell.gain);
+
+  const master = ctx.createGain();
+  master.gain.setValueAtTime(0.0001, ctx.currentTime);
+  master.gain.exponentialRampToValueAtTime(0.22, ctx.currentTime + 2);
+
+  source.connect(filter).connect(swell).connect(master).connect(a.out);
+  source.start();
+  lfo.start();
+
+  ambience = {
+    master,
+    stop: () => {
+      source.stop();
+      lfo.stop();
+    },
+  };
+}
+
+export function stopAmbience(): void {
+  const current = ambience;
+  if (!current || !audio) return;
+  ambience = null;
+
+  const { ctx } = audio;
+  current.master.gain.cancelScheduledValues(ctx.currentTime);
+  current.master.gain.setValueAtTime(current.master.gain.value, ctx.currentTime);
+  current.master.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.6);
+  setTimeout(current.stop, 700);
 }

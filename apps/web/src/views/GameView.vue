@@ -3,7 +3,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { isSunk } from '@pixelfleet/engine';
-import type { Coord } from '@pixelfleet/engine';
+import type { Coord, ShipType } from '@pixelfleet/engine';
 import BoardGrid from '@/components/BoardGrid.vue';
 import FleetStatus from '@/components/FleetStatus.vue';
 import { icons, ui } from '@/lib/assets';
@@ -46,6 +46,7 @@ onMounted(async () => {
 onUnmounted(() => {
   clearInterval(ticker);
   clearTimeout(shakeTimer);
+  clearTimeout(toastTimer);
 });
 
 // Сесію втрачено: назад на головну.
@@ -113,6 +114,21 @@ const ownSunk = computed(() =>
 const enemySunk = computed(
   () => view.value?.opponentBoard?.sunkShips.map((ship) => ship.type) ?? [],
 );
+
+// Велике оголошення, коли потоплено корабель (мій або суперника).
+const toast = ref<{ side: 'enemy' | 'own'; ship: ShipType } | null>(null);
+let toastTimer: ReturnType<typeof setTimeout> | undefined;
+
+function announce(side: 'enemy' | 'own', next: ShipType[], previous: ShipType[]): void {
+  const ship = next.find((type) => !previous.includes(type));
+  if (!ship) return;
+  toast.value = { side, ship };
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => (toast.value = null), 2400);
+}
+
+watch(enemySunk, (next, previous) => announce('enemy', next, previous));
+watch(ownSunk, (next, previous) => announce('own', next, previous));
 
 const ownRemaining = computed(() => ownShips.value.length - ownSunk.value.length);
 const enemyRemaining = computed(() => view.value?.opponentBoard?.shipsRemaining ?? 0);
@@ -215,6 +231,7 @@ function backToMenu(): void {
             :shots="enemyShots"
             :interactive="canFire"
             :active="status === 'your_turn'"
+            aim
             @cell="onFire"
           />
           <FleetStatus :label="enemyFleetLabel" :sunk="enemySunk" />
@@ -242,6 +259,16 @@ function backToMenu(): void {
         </div>
       </div>
     </div>
+
+    <Transition name="toast">
+      <div v-if="toast" class="toast" :class="`toast--${toast.side}`" role="status">
+        {{
+          t(toast.side === 'enemy' ? 'game.sunkEnemy' : 'game.sunkOwn', {
+            ship: t(`ships.${toast.ship}`),
+          })
+        }}
+      </div>
+    </Transition>
   </section>
 </template>
 
@@ -339,6 +366,66 @@ function backToMenu(): void {
 
   80% {
     transform: translate(3px, -2px);
+  }
+}
+
+.toast {
+  position: fixed;
+  top: 26%;
+  left: 50%;
+  z-index: 20;
+  max-width: 90vw;
+  padding: 16px 24px;
+  font-family: $font-pixel;
+  font-size: 16px;
+  line-height: 1.5;
+  text-align: center;
+  text-transform: uppercase;
+  background: rgb(6 10 32 / 92%);
+  border: 4px solid;
+  translate: -50% 0;
+
+  &--enemy {
+    color: $color-orange-light;
+    border-color: $color-orange-light;
+    box-shadow: 0 0 30px rgb(249 188 77 / 45%);
+  }
+
+  &--own {
+    color: $color-red-light;
+    border-color: $color-red;
+    box-shadow: 0 0 30px rgb(218 48 39 / 45%);
+  }
+}
+
+.toast-enter-active {
+  animation: toast-in 0.35s ease-out;
+}
+
+.toast-leave-active {
+  transition:
+    opacity 0.4s,
+    translate 0.4s;
+}
+
+.toast-leave-to {
+  opacity: 0;
+  translate: -50% -16px;
+}
+
+@keyframes toast-in {
+  0% {
+    opacity: 0;
+    scale: 0.4;
+  }
+
+  60% {
+    opacity: 1;
+    scale: 1.12;
+  }
+
+  100% {
+    scale: 1;
   }
 }
 </style>

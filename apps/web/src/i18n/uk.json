@@ -57,6 +57,8 @@
     "resignConfirm": "Точно здатися?",
     "backToMenu": "У меню",
     "rematch": "Реванш",
+    "sunkEnemy": "Потоплено: {ship}!",
+    "sunkOwn": "Втрачено: {ship}",
     "rematchWaiting": "Чекаємо відповіді суперника…",
     "rematchOffered": "Суперник пропонує реванш"
   },
