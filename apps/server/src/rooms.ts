@@ -1,13 +1,13 @@
 import { randomInt, randomUUID } from 'node:crypto';
 import * as engine from '@pixelfleet/engine';
-import type { Presence } from '@pixelfleet/protocol';
+import type { Presence, RoomMeta } from '@pixelfleet/protocol';
 
 /** Без схожих символів 0/O і 1/I. */
 const CODE_ALPHABET = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const CODE_LENGTH = 5;
 const MAX_CODE_ATTEMPTS = 100;
 
-/** Усе недетерміноване приходить ззовні, тому менеджер легко тестувати. */
+/** Усе випадкове приходить ззовні, тому менеджер легко тестувати. */
 export interface RoomEnv {
   randomCode(): string;
   randomToken(): string;
@@ -24,15 +24,39 @@ export const defaultEnv: RoomEnv = {
   coinFlip: () => (randomInt(2) === 0 ? 'a' : 'b'),
 };
 
+export interface RoomConfig {
+  /** Скільки мілісекунд на хід. */
+  turnMs: number;
+  /** Скільки гравець може бути не на зв'язку, перш ніж програти. */
+  graceMs: number;
+  /** Через скільки кімната, де ніхто не на зв'язку, видаляється. */
+  roomTtlMs: number;
+  /** Скільки ходів поспіль можна пропустити до технічної поразки. */
+  maxSkips: number;
+}
+
+export const defaultConfig: RoomConfig = {
+  turnMs: 60_000,
+  graceMs: 60_000,
+  roomTtlMs: 30 * 60_000,
+  maxSkips: 2,
+};
+
 interface Seat {
   token: string;
   connected: boolean;
+  offlineSince: number | null;
 }
 
 interface Room {
   code: string;
   game: engine.Game;
   seats: Partial<Record<engine.PlayerId, Seat>>;
+  turnDeadline: number | null;
+  /** Скільки ходів поспіль гравець пропустив. */
+  skips: Record<engine.PlayerId, number>;
+  rematch: Record<engine.PlayerId, boolean>;
+  lastActivity: number;
 }
 
 interface SeatRef {
@@ -40,9 +64,10 @@ interface SeatRef {
   player: engine.PlayerId;
 }
 
+export type { Presence };
+
 export type RoomErrorCode = 'room_not_found' | 'room_full' | 'unknown_token';
 export type ManagerError = { code: RoomErrorCode } | engine.GameError;
-export type { Presence };
 
 export type Failure = { ok: false; error: ManagerError };
 export type SeatOk = { ok: true; code: string; player: engine.PlayerId };
@@ -57,9 +82,17 @@ export class RoomManager {
   /** Токен → місце. Токен секретний, тож за ним сервер упізнає гравця. */
   private readonly seats = new Map<string, SeatRef>();
   private readonly env: RoomEnv;
+  private readonly config: RoomConfig;
+  private readonly now: () => number;
 
-  constructor(env: RoomEnv = defaultEnv) {
+  constructor(
+    env: RoomEnv = defaultEnv,
+    config: Partial<RoomConfig> = {},
+    now: () => number = () => Date.now(),
+  ) {
     this.env = env;
+    this.config = { ...defaultConfig, ...config };
+    this.now = now;
   }
 
   createRoom(): Joined {
@@ -69,7 +102,11 @@ export class RoomManager {
     this.rooms.set(code, {
       code,
       game: engine.createGame(this.env.coinFlip()),
-      seats: { a: { token, connected: true } },
+      seats: { a: { token, connected: true, offlineSince: null } },
+      turnDeadline: null,
+      skips: { a: 0, b: 0 },
+      rematch: { a: false, b: false },
+      lastActivity: this.now(),
     });
     this.seats.set(token, { code, player: 'a' });
 
@@ -82,8 +119,9 @@ export class RoomManager {
     if (room.seats.b) return fail('room_full');
 
     const token = this.env.randomToken();
-    room.seats.b = { token, connected: true };
+    room.seats.b = { token, connected: true, offlineSince: null };
     this.seats.set(token, { code, player: 'b' });
+    room.lastActivity = this.now();
 
     return { ok: true, code, token, player: 'b' };
   }
@@ -100,8 +138,15 @@ export class RoomManager {
     const ref = this.seats.get(token);
     if (!ref) return undefined;
 
-    const seat = this.rooms.get(ref.code)?.seats[ref.player];
-    if (seat) seat.connected = connected;
+    const room = this.rooms.get(ref.code);
+    const seat = room?.seats[ref.player];
+    if (room && seat) {
+      const now = this.now();
+      if (connected) seat.offlineSince = null;
+      else if (seat.connected) seat.offlineSince = now;
+      seat.connected = connected;
+      room.lastActivity = now;
+    }
     return ref;
   }
 
@@ -113,6 +158,7 @@ export class RoomManager {
     if (!result.ok) return result;
 
     found.room.game = result.game;
+    this.afterChange(found.room);
     return { ok: true, code: found.room.code, player: found.player };
   }
 
@@ -124,6 +170,8 @@ export class RoomManager {
     if (!result.ok) return result;
 
     found.room.game = result.game;
+    found.room.skips[found.player] = 0;
+    this.afterChange(found.room);
     return {
       ok: true,
       code: found.room.code,
@@ -141,7 +189,48 @@ export class RoomManager {
     if (!result.ok) return result;
 
     found.room.game = result.game;
+    this.afterChange(found.room);
     return { ok: true, code: found.room.code, player: found.player };
+  }
+
+  /** Реванш починається, коли його попросили обидва гравці. */
+  requestRematch(token: string): SeatOk | Failure {
+    const found = this.locate(token);
+    if (!found) return fail('unknown_token');
+
+    const { room, player } = found;
+    if (room.game.phase !== 'finished') return { ok: false, error: { code: 'wrong_phase' } };
+
+    room.rematch[player] = true;
+
+    const bothAsked = room.rematch.a && room.rematch.b;
+    if (bothAsked && room.seats.a && room.seats.b) {
+      // Першим стріляє той, хто в минулій партії ходив другим.
+      room.game = engine.createGame(engine.opponentOf(room.game.firstPlayer));
+      room.rematch = { a: false, b: false };
+      room.skips = { a: 0, b: 0 };
+    }
+
+    this.afterChange(room);
+    return { ok: true, code: room.code, player };
+  }
+
+  /**
+   * Застосовує правила часу: технічні поразки, пропуск ходу, видалення старих кімнат.
+   * Повертає коди кімнат, у яких змінився стан (їх треба розіслати гравцям).
+   */
+  sweep(): string[] {
+    const now = this.now();
+    const changed: string[] = [];
+
+    for (const room of [...this.rooms.values()]) {
+      if (this.isStale(room, now)) {
+        this.remove(room);
+        continue;
+      }
+      if (this.enforce(room, now)) changed.push(room.code);
+    }
+    return changed;
   }
 
   /** Проєкції для кожного гравця, що сидить у кімнаті. Тільки їх можна віддавати клієнтам. */
@@ -156,6 +245,25 @@ export class RoomManager {
     return views;
   }
 
+  /** Таймер і стан реваншу для кожного гравця. */
+  meta(code: string): Partial<Record<engine.PlayerId, RoomMeta>> {
+    const room = this.rooms.get(code);
+    const result: Partial<Record<engine.PlayerId, RoomMeta>> = {};
+    if (!room) return result;
+
+    const remaining =
+      room.turnDeadline === null ? null : Math.max(0, room.turnDeadline - this.now());
+
+    for (const player of ['a', 'b'] as const) {
+      if (!room.seats[player]) continue;
+      result[player] = {
+        turnRemainingMs: remaining,
+        rematch: { you: room.rematch[player], opponent: room.rematch[engine.opponentOf(player)] },
+      };
+    }
+    return result;
+  }
+
   presence(code: string): Record<engine.PlayerId, Presence> | undefined {
     const room = this.rooms.get(code);
     if (!room) return undefined;
@@ -163,6 +271,71 @@ export class RoomManager {
     const state = (seat: Seat | undefined): Presence =>
       !seat ? 'empty' : seat.connected ? 'online' : 'offline';
     return { a: state(room.seats.a), b: state(room.seats.b) };
+  }
+
+  /** Після будь-якої зміни стану: оновлюємо активність і таймер ходу. */
+  private afterChange(room: Room): void {
+    const now = this.now();
+    room.lastActivity = now;
+    room.turnDeadline = room.game.phase === 'battle' ? now + this.config.turnMs : null;
+  }
+
+  private enforce(room: Room, now: number): boolean {
+    if (room.game.phase === 'finished') return false;
+
+    // Гравець надто довго не на зв'язку, а суперник на місці: технічна поразка.
+    for (const player of ['a', 'b'] as const) {
+      const seat = room.seats[player];
+      const opponent = room.seats[engine.opponentOf(player)];
+      const gone =
+        seat !== undefined &&
+        !seat.connected &&
+        seat.offlineSince !== null &&
+        now - seat.offlineSince >= this.config.graceMs;
+
+      if (gone && opponent?.connected) return this.forfeit(room, player, 'abandoned');
+    }
+
+    // Час на хід вийшов: пропускаємо хід, а після кількох пропусків поспіль програємо.
+    const turn = room.game.turn;
+    if (
+      room.game.phase === 'battle' &&
+      turn !== null &&
+      room.turnDeadline !== null &&
+      now >= room.turnDeadline
+    ) {
+      room.skips[turn] += 1;
+      if (room.skips[turn] >= this.config.maxSkips) return this.forfeit(room, turn, 'timeout');
+
+      const result = engine.skipTurn(room.game, turn);
+      if (!result.ok) return false;
+      room.game = result.game;
+      this.afterChange(room);
+      return true;
+    }
+
+    return false;
+  }
+
+  private forfeit(room: Room, loser: engine.PlayerId, reason: 'timeout' | 'abandoned'): boolean {
+    const result = engine.forfeit(room.game, loser, reason);
+    if (!result.ok) return false;
+
+    room.game = result.game;
+    this.afterChange(room);
+    return true;
+  }
+
+  private isStale(room: Room, now: number): boolean {
+    const anyoneConnected = Object.values(room.seats).some((seat) => seat?.connected);
+    return !anyoneConnected && now - room.lastActivity >= this.config.roomTtlMs;
+  }
+
+  private remove(room: Room): void {
+    for (const seat of Object.values(room.seats)) {
+      if (seat) this.seats.delete(seat.token);
+    }
+    this.rooms.delete(room.code);
   }
 
   private locate(token: string): { room: Room; player: engine.PlayerId } | undefined {

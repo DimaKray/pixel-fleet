@@ -7,7 +7,7 @@ import type { Coord, PlacedShip, Shot } from './types.js';
 
 export type PlayerId = 'a' | 'b';
 export type GamePhase = 'placement' | 'battle' | 'finished';
-export type EndReason = 'all_sunk' | 'resigned';
+export type EndReason = 'all_sunk' | 'resigned' | 'timeout' | 'abandoned';
 
 /** Повний стан партії. Живе лише на сервері, клієнтам віддаємо тільки `GameView`. */
 export interface Game {
@@ -99,7 +99,12 @@ export function shoot(game: Game, player: PlayerId, at: Coord): ShootResult {
   };
 }
 
-export function resign(game: Game, player: PlayerId): GameResult {
+/** Гравець програє не через постріли: здався, не ходив або залишив гру. */
+export function forfeit(
+  game: Game,
+  loser: PlayerId,
+  reason: Exclude<EndReason, 'all_sunk'>,
+): GameResult {
   if (game.phase === 'finished') return fail('wrong_phase');
 
   return {
@@ -108,10 +113,22 @@ export function resign(game: Game, player: PlayerId): GameResult {
       ...game,
       phase: 'finished',
       turn: null,
-      winner: opponentOf(player),
-      endReason: 'resigned',
+      winner: opponentOf(loser),
+      endReason: reason,
     },
   };
+}
+
+export function resign(game: Game, player: PlayerId): GameResult {
+  return forfeit(game, player, 'resigned');
+}
+
+/** Передає хід суперникові, якщо гравець не встиг стрельнути. */
+export function skipTurn(game: Game, player: PlayerId): GameResult {
+  if (game.phase !== 'battle') return fail('wrong_phase');
+  if (game.turn !== player) return fail('not_your_turn');
+
+  return { ok: true, game: { ...game, turn: opponentOf(player) } };
 }
 
 /** Те, що клієнт отримує від сервера. Єдине місце, де вирішується, що можна бачити. */

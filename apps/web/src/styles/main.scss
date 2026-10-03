@@ -246,3 +246,10 @@ canvas {
     text-shadow: 2px 2px 0 $color-bg;
   }
 }
+.timer {
+  margin: 0;
+
+  &--low {
+    color: $color-danger;
+  }
+}

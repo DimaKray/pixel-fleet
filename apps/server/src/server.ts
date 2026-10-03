@@ -15,7 +15,7 @@ import type {
   WireError,
 } from '@pixelfleet/protocol';
 import { RoomManager, defaultEnv } from './rooms.js';
-import type { RoomEnv } from './rooms.js';
+import type { RoomConfig, RoomEnv } from './rooms.js';
 
 interface SocketData {
   token?: string;
@@ -29,6 +29,10 @@ type GameSocket = Socket<ClientToServerEvents, ServerToClientEvents, InterServer
 export interface GameServerOptions {
   clientOrigin: string;
   env?: RoomEnv;
+  config?: Partial<RoomConfig>;
+  /** Як часто перевіряємо таймери й старі кімнати. */
+  sweepIntervalMs?: number;
+  now?: () => number;
 }
 
 const failure = (code: ErrorCode): { ok: false; error: WireError } => ({
@@ -43,7 +47,13 @@ function safeAck<R>(ack: unknown): (reply: R) => void {
 
 const seatRoom = (code: string, player: PlayerId): string => `${code}:${player}`;
 
-export function createGameServer({ clientOrigin, env = defaultEnv }: GameServerOptions) {
+export function createGameServer({
+  clientOrigin,
+  env = defaultEnv,
+  config,
+  sweepIntervalMs = 1000,
+  now,
+}: GameServerOptions) {
   const app = express();
   app.use(cors({ origin: clientOrigin }));
   app.get('/health', (_req, res) => {
@@ -55,15 +65,18 @@ export function createGameServer({ clientOrigin, env = defaultEnv }: GameServerO
     httpServer,
     { cors: { origin: clientOrigin } },
   );
-  const manager = new RoomManager(env);
+  const manager = new RoomManager(env, config, now);
   /** Токен → id сокета, який зараз «володіє» цим місцем. */
   const activeSockets = new Map<string, string>();
 
   function broadcastState(code: string): void {
     const views = manager.views(code);
+    const metas = manager.meta(code);
     for (const player of ['a', 'b'] as const) {
       const view = views[player];
       if (view) io.to(seatRoom(code, player)).emit('game:state', view);
+      const meta = metas[player];
+      if (meta) io.to(seatRoom(code, player)).emit('room:meta', meta);
     }
   }
 
@@ -196,6 +209,10 @@ export function createGameServer({ clientOrigin, env = defaultEnv }: GameServerO
       act(socket, ack, (token) => manager.resign(token));
     });
 
+    socket.on('game:rematch', (ack) => {
+      act(socket, ack, (token) => manager.requestRematch(token));
+    });
+
     socket.on('disconnect', () => {
       const { token } = socket.data;
       // Запізніле відключення старого сокета не повинно позначати гравця офлайн.
@@ -207,7 +224,14 @@ export function createGameServer({ clientOrigin, env = defaultEnv }: GameServerO
     });
   });
 
+  // Таймери ходу, технічні поразки й видалення старих кімнат.
+  const sweeper = setInterval(() => {
+    for (const code of manager.sweep()) broadcastState(code);
+  }, sweepIntervalMs);
+  sweeper.unref();
+
   async function close(): Promise<void> {
+    clearInterval(sweeper);
     await new Promise<void>((resolve) => {
       void io.close(() => resolve());
     });

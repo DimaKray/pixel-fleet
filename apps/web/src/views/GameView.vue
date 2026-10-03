@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 import { isSunk } from '@pixelfleet/engine';
@@ -20,7 +20,15 @@ const loading = ref(true);
 const busy = ref(false);
 const error = ref<ClientError | null>(null);
 
+// Годинник для зворотного відліку: оновлюємо кілька разів на секунду.
+const now = ref(Date.now());
+let ticker: ReturnType<typeof setInterval> | undefined;
+
 onMounted(async () => {
+  ticker = setInterval(() => {
+    now.value = Date.now();
+  }, 250);
+
   if (game.code === null) {
     const result = await game.resume();
     if (!result.ok) {
@@ -34,6 +42,8 @@ onMounted(async () => {
   loading.value = false;
 });
 
+onUnmounted(() => clearInterval(ticker));
+
 // Сесію втрачено: назад на головну.
 watch(
   () => game.code,
@@ -42,7 +52,7 @@ watch(
   },
 );
 
-// Відкрили екран бою, поки розстановка ще триває: повертаємось у лобі.
+// Почався реванш: знову розстановка, тож повертаємось у лобі.
 watch(
   () => game.view?.phase,
   (phase) => {
@@ -59,11 +69,17 @@ const canFire = computed(() => status.value === 'your_turn' && !busy.value);
 const statusText = computed(() => {
   const current = view.value;
   if (!current) return '';
-  if (current.endReason === 'resigned' && (status.value === 'won' || status.value === 'lost')) {
-    return t(`game.${status.value}_resigned`);
+  if (finished.value && current.endReason && current.endReason !== 'all_sunk') {
+    return t(`game.${status.value}_${current.endReason}`);
   }
   return t(`game.${status.value}`);
 });
+
+const secondsLeft = computed(() =>
+  game.turnDeadline === null
+    ? null
+    : Math.max(0, Math.ceil((game.turnDeadline - now.value) / 1000)),
+);
 
 /** Корабель суперника видно лише потопленим, а після кінця гри весь флот. */
 const enemyShips = computed(
@@ -99,6 +115,12 @@ async function resign(): Promise<void> {
   if (!reply.ok) error.value = reply.error;
 }
 
+async function rematch(): Promise<void> {
+  error.value = null;
+  const reply = await game.requestRematch();
+  if (!reply.ok) error.value = reply.error;
+}
+
 function backToMenu(): void {
   game.leave();
   void router.replace({ name: 'home' });
@@ -119,14 +141,14 @@ function backToMenu(): void {
       <figcaption class="banner__text">{{ statusText }}</figcaption>
     </figure>
 
-    <p
-      v-else
-      class="status"
-      :class="{ 'status--active': status === 'your_turn' }"
-      aria-live="polite"
-    >
-      {{ statusText }}
-    </p>
+    <template v-else>
+      <p class="status" :class="{ 'status--active': status === 'your_turn' }" aria-live="polite">
+        {{ statusText }}
+      </p>
+      <p v-if="secondsLeft !== null" class="timer" :class="{ 'timer--low': secondsLeft <= 10 }">
+        {{ t('game.timer', { seconds: secondsLeft }) }}
+      </p>
+    </template>
 
     <div class="boards">
       <section class="boards__item">
@@ -150,13 +172,24 @@ function backToMenu(): void {
 
     <p v-if="errorText" class="error" role="alert">{{ errorText }}</p>
 
-    <div class="actions">
-      <button v-if="!finished" type="button" class="btn btn--ghost" @click="resign">
-        {{ t('game.resign') }}
-      </button>
-      <button v-else type="button" class="btn" @click="backToMenu">
-        {{ t('game.backToMenu') }}
-      </button>
+    <div v-if="!finished" class="actions">
+      <button type="button" class="btn btn--ghost" @click="resign">{{ t('game.resign') }}</button>
+    </div>
+
+    <div v-else class="stack">
+      <p v-if="game.rematch.opponent && !game.rematch.you" aria-live="polite">
+        {{ t('game.rematchOffered') }}
+      </p>
+      <p v-else-if="game.rematch.you" aria-live="polite">{{ t('game.rematchWaiting') }}</p>
+
+      <div class="actions">
+        <button type="button" class="btn" :disabled="game.rematch.you" @click="rematch">
+          {{ t('game.rematch') }}
+        </button>
+        <button type="button" class="btn btn--ghost" @click="backToMenu">
+          {{ t('game.backToMenu') }}
+        </button>
+      </div>
     </div>
   </section>
 </template>

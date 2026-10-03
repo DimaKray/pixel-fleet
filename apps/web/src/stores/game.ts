@@ -62,6 +62,9 @@ export const useGameStore = defineStore('game', () => {
   const player = ref<PlayerId | null>(null);
   const view = ref<GameView | null>(null);
   const opponentPresence = ref<Presence>('empty');
+  /** Момент (за годинником клієнта), коли закінчиться час на хід. */
+  const turnDeadline = ref<number | null>(null);
+  const rematch = ref({ you: false, opponent: false });
 
   function reset(): void {
     session.clearToken();
@@ -69,6 +72,8 @@ export const useGameStore = defineStore('game', () => {
     player.value = null;
     view.value = null;
     opponentPresence.value = 'empty';
+    turnDeadline.value = null;
+    rematch.value = { you: false, opponent: false };
   }
 
   function adopt(reply: SeatAck | ResumeAck | NetworkFailure): SessionResult {
@@ -114,6 +119,10 @@ export const useGameStore = defineStore('game', () => {
     return request<ActionAck>((cb) => socket.emit('game:resign', cb));
   }
 
+  async function requestRematch(): Promise<ActionResult> {
+    return request<ActionAck>((cb) => socket.emit('game:rematch', cb));
+  }
+
   function leave(): void {
     reset();
     socket.disconnect();
@@ -121,6 +130,11 @@ export const useGameStore = defineStore('game', () => {
 
   socket.on('game:state', (next) => {
     view.value = next;
+  });
+  socket.on('room:meta', (meta) => {
+    // Сервер шле скільки лишилось, а не абсолютний час: годинники клієнта й сервера можуть різнитися.
+    turnDeadline.value = meta.turnRemainingMs === null ? null : Date.now() + meta.turnRemainingMs;
+    rematch.value = meta.rematch;
   });
   socket.on('opponent:presence', (status) => {
     opponentPresence.value = status;
@@ -140,12 +154,15 @@ export const useGameStore = defineStore('game', () => {
     player,
     view,
     opponentPresence,
+    turnDeadline,
+    rematch,
     createRoom,
     joinRoom,
     resume,
     placeFleet,
     fire,
     resign,
+    requestRematch,
     leave,
   };
 });

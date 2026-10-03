@@ -44,13 +44,21 @@
     "waiting": "Waiting for placement…",
     "your_turn": "Your turn! Click the enemy waters",
     "opponent_turn": "Opponent's turn…",
+    "timer": "Time to move: {seconds} s",
     "won": "Victory!",
     "lost": "Defeat",
     "won_resigned": "Opponent resigned. Victory!",
     "lost_resigned": "You resigned",
+    "won_timeout": "Opponent stopped moving. Victory!",
+    "lost_timeout": "You skipped too many turns",
+    "won_abandoned": "Opponent left the game. Victory!",
+    "lost_abandoned": "You were offline for too long",
     "resign": "Resign",
     "resignConfirm": "Really resign?",
-    "backToMenu": "Back to menu"
+    "backToMenu": "Back to menu",
+    "rematch": "Rematch",
+    "rematchWaiting": "Waiting for the opponent…",
+    "rematchOffered": "Opponent wants a rematch"
   },
   "ships": {
     "carrier": "Carrier",
