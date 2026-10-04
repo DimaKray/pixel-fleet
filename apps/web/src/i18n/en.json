@@ -6,7 +6,8 @@
     "codeLabel": "Or enter a room code",
     "codePlaceholder": "CODE",
     "join": "Join",
-    "loading": "Connecting…"
+    "loading": "Connecting…",
+    "botLabel": "Or play against a bot"
   },
   "lobby": {
     "title": "Room",
@@ -21,7 +22,8 @@
   "presence": {
     "empty": "No opponent yet",
     "online": "Opponent is in the room",
-    "offline": "Opponent is offline"
+    "offline": "Opponent is offline",
+    "bot": "Bot opponent"
   },
   "placement": {
     "title": "Place your fleet",
@@ -74,6 +76,11 @@
   "sound": {
     "on": "Mute sound",
     "off": "Unmute sound"
+  },
+  "bot": {
+    "easy": "Cadet",
+    "normal": "Captain",
+    "hard": "Admiral"
   },
   "errors": {
     "invalid_payload": "Invalid data",

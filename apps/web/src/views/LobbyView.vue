@@ -99,9 +99,14 @@ function leave(): void {
           <strong>{{ code }}</strong>
         </div>
 
-        <PresenceBadge :code="code" :you="game.player ?? 'a'" :status="game.opponentPresence" />
+        <PresenceBadge
+          :code="code"
+          :you="game.player ?? 'a'"
+          :status="game.opponentPresence"
+          :bot="game.bot !== null"
+        />
 
-        <button type="button" class="btn btn--small" @click="copyInvite">
+        <button v-if="game.bot === null" type="button" class="btn btn--small" @click="copyInvite">
           <img :src="icons.copy" alt="" />
           {{ copied ? t('lobby.copied') : t('lobby.copyLink') }}
         </button>

@@ -7,18 +7,22 @@ import { portraitSrc } from '@/lib/assets';
 import { opponentPortrait } from '@/lib/avatars';
 import { useSettingsStore } from '@/stores/settings';
 
-const props = defineProps<{ code: string; you: PlayerId; status: Presence }>();
+const props = defineProps<{ code: string; you: PlayerId; status: Presence; bot?: boolean }>();
 
 const { t } = useI18n();
 const settings = useSettingsStore();
 
-const portrait = computed(() => portraitSrc(opponentPortrait(props.code, props.you)));
+// Бот завжди з'являється як робот; живого суперника визначає код кімнати.
+const portrait = computed(() =>
+  portraitSrc(props.bot ? 'robot' : opponentPortrait(props.code, props.you)),
+);
+const label = computed(() => (props.bot ? t('presence.bot') : t(`presence.${props.status}`)));
 
 // Суперник зайшов у кімнату: короткий дзвінок.
 watch(
   () => props.status,
   (next, previous) => {
-    if (next === 'online' && previous !== 'online') settings.play('join');
+    if (!props.bot && next === 'online' && previous !== 'online') settings.play('join');
   },
 );
 </script>
@@ -32,7 +36,7 @@ watch(
       </span>
     </span>
     <span class="badge__text" :class="{ 'badge__text--wait': status === 'empty' }">
-      {{ t(`presence.${status}`) }}
+      {{ label }}
     </span>
   </div>
 </template>

@@ -4,7 +4,13 @@ import express from 'express';
 import { Server } from 'socket.io';
 import type { Socket } from 'socket.io';
 import type { PlayerId } from '@pixelfleet/engine';
-import { FireSchema, JoinRoomSchema, PlaceFleetSchema, ResumeSchema } from '@pixelfleet/protocol';
+import {
+  CreateBotSchema,
+  FireSchema,
+  JoinRoomSchema,
+  PlaceFleetSchema,
+  ResumeSchema,
+} from '@pixelfleet/protocol';
 import type {
   ActionAck,
   ClientToServerEvents,
@@ -51,7 +57,7 @@ export function createGameServer({
   clientOrigin,
   env = defaultEnv,
   config,
-  sweepIntervalMs = 1000,
+  sweepIntervalMs = 250,
   now,
 }: GameServerOptions) {
   const app = express();
@@ -127,6 +133,25 @@ export function createGameServer({
       }
 
       const room = manager.createRoom();
+      seat(socket, room.token, room.code, room.player);
+      done({ ok: true, code: room.code, token: room.token, player: room.player });
+      broadcastState(room.code);
+      broadcastPresence(room.code);
+    });
+
+    socket.on('room:create-bot', (payload, ack) => {
+      const done = safeAck<SeatAck>(ack);
+      const parsed = CreateBotSchema.safeParse(payload);
+      if (!parsed.success) {
+        done(failure('invalid_payload'));
+        return;
+      }
+      if (socket.data.token) {
+        done(failure('already_in_room'));
+        return;
+      }
+
+      const room = manager.createBotRoom(parsed.data.difficulty);
       seat(socket, room.token, room.code, room.player);
       done({ ok: true, code: room.code, token: room.token, player: room.player });
       broadcastState(room.code);

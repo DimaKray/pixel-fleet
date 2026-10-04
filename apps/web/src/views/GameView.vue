@@ -201,7 +201,12 @@ function backToMenu(): void {
           <strong>{{ code }}</strong>
         </div>
 
-        <PresenceBadge :code="code" :you="game.player ?? 'a'" :status="game.opponentPresence" />
+        <PresenceBadge
+          :code="code"
+          :you="game.player ?? 'a'"
+          :status="game.opponentPresence"
+          :bot="game.bot !== null"
+        />
 
         <button
           v-if="!finished"

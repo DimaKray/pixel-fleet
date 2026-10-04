@@ -2,6 +2,8 @@
 import { onMounted, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
+import { BOT_DIFFICULTIES } from '@pixelfleet/engine';
+import type { BotDifficulty } from '@pixelfleet/engine';
 import { portraits, portraitSrc } from '@/lib/assets';
 import { useGameStore } from '@/stores/game';
 import type { ClientError, SessionResult } from '@/stores/game';
@@ -42,6 +44,12 @@ async function join(): Promise<void> {
   busy.value = true;
   error.value = null;
   await finish(await game.joinRoom(joinCode.value));
+}
+
+async function startBot(difficulty: BotDifficulty): Promise<void> {
+  busy.value = true;
+  error.value = null;
+  await finish(await game.createBotRoom(difficulty));
 }
 
 onMounted(async () => {
@@ -87,6 +95,20 @@ onMounted(async () => {
             />
             <button type="button" class="btn" :disabled="busy || joinCode.length < 5" @click="join">
               {{ t('home.join') }}
+            </button>
+          </div>
+
+          <p class="divider">{{ t('home.botLabel') }}</p>
+          <div class="row">
+            <button
+              v-for="level in BOT_DIFFICULTIES"
+              :key="level"
+              type="button"
+              class="btn"
+              :disabled="busy"
+              @click="startBot(level)"
+            >
+              {{ t(`bot.${level}`) }}
             </button>
           </div>
         </template>

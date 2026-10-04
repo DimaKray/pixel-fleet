@@ -13,6 +13,8 @@ export interface RoomEnv {
   randomToken(): string;
   /** Хто стріляє першим. */
   coinFlip(): engine.PlayerId;
+  /** Число від 0 до 1 для бота (розстановка, вибір пострілу). За замовчуванням Math.random. */
+  random?(): number;
 }
 
 export const defaultEnv: RoomEnv = {
@@ -33,6 +35,9 @@ export interface RoomConfig {
   roomTtlMs: number;
   /** Скільки ходів поспіль можна пропустити до технічної поразки. */
   maxSkips: number;
+  /** Бот «думає» випадковий час між цими двома значеннями. */
+  botMinMs: number;
+  botMaxMs: number;
 }
 
 export const defaultConfig: RoomConfig = {
@@ -40,12 +45,20 @@ export const defaultConfig: RoomConfig = {
   graceMs: 60_000,
   roomTtlMs: 30 * 60_000,
   maxSkips: 2,
+  botMinMs: 700,
+  botMaxMs: 1400,
 };
 
 interface Seat {
   token: string;
   connected: boolean;
   offlineSince: number | null;
+}
+
+interface BotState {
+  difficulty: engine.BotDifficulty;
+  /** Коли бот зробить постріл. `null`, якщо зараз не його хід. */
+  dueAt: number | null;
 }
 
 interface Room {
@@ -57,6 +70,8 @@ interface Room {
   skips: Record<engine.PlayerId, number>;
   rematch: Record<engine.PlayerId, boolean>;
   lastActivity: number;
+  /** Якщо кімната з ботом, бот завжди займає місце `b`. */
+  bot: BotState | null;
 }
 
 interface SeatRef {
@@ -96,21 +111,12 @@ export class RoomManager {
   }
 
   createRoom(): Joined {
-    const code = this.freeCode();
-    const token = this.env.randomToken();
+    return this.open(null);
+  }
 
-    this.rooms.set(code, {
-      code,
-      game: engine.createGame(this.env.coinFlip()),
-      seats: { a: { token, connected: true, offlineSince: null } },
-      turnDeadline: null,
-      skips: { a: 0, b: 0 },
-      rematch: { a: false, b: false },
-      lastActivity: this.now(),
-    });
-    this.seats.set(token, { code, player: 'a' });
-
-    return { ok: true, code, token, player: 'a' };
+  /** Кімната, де суперник бот: другого гравця чекати не треба, бот розставляє флот одразу. */
+  createBotRoom(difficulty: engine.BotDifficulty): Joined {
+    return this.open(difficulty);
   }
 
   joinRoom(code: string): Joined | Failure {
@@ -193,7 +199,7 @@ export class RoomManager {
     return { ok: true, code: found.room.code, player: found.player };
   }
 
-  /** Реванш починається, коли його попросили обидва гравці. */
+  /** Реванш починається, коли його попросили обидва гравці. Бот погоджується одразу. */
   requestRematch(token: string): SeatOk | Failure {
     const found = this.locate(token);
     if (!found) return fail('unknown_token');
@@ -202,6 +208,7 @@ export class RoomManager {
     if (room.game.phase !== 'finished') return { ok: false, error: { code: 'wrong_phase' } };
 
     room.rematch[player] = true;
+    if (room.bot) room.rematch.b = true;
 
     const bothAsked = room.rematch.a && room.rematch.b;
     if (bothAsked && room.seats.a && room.seats.b) {
@@ -209,6 +216,7 @@ export class RoomManager {
       room.game = engine.createGame(engine.opponentOf(room.game.firstPlayer));
       room.rematch = { a: false, b: false };
       room.skips = { a: 0, b: 0 };
+      this.seatBot(room);
     }
 
     this.afterChange(room);
@@ -216,7 +224,7 @@ export class RoomManager {
   }
 
   /**
-   * Застосовує правила часу: технічні поразки, пропуск ходу, видалення старих кімнат.
+   * Застосовує правила часу: ходи ботів, технічні поразки, пропуск ходу, видалення старих кімнат.
    * Повертає коди кімнат, у яких змінився стан (їх треба розіслати гравцям).
    */
   sweep(): string[] {
@@ -228,7 +236,9 @@ export class RoomManager {
         this.remove(room);
         continue;
       }
-      if (this.enforce(room, now)) changed.push(room.code);
+      const botMoved = this.botMove(room, now);
+      const ruled = this.enforce(room, now);
+      if (botMoved || ruled) changed.push(room.code);
     }
     return changed;
   }
@@ -245,7 +255,7 @@ export class RoomManager {
     return views;
   }
 
-  /** Таймер і стан реваншу для кожного гравця. */
+  /** Таймер, стан реваншу і чи грає людина проти бота. */
   meta(code: string): Partial<Record<engine.PlayerId, RoomMeta>> {
     const room = this.rooms.get(code);
     const result: Partial<Record<engine.PlayerId, RoomMeta>> = {};
@@ -259,6 +269,7 @@ export class RoomManager {
       result[player] = {
         turnRemainingMs: remaining,
         rematch: { you: room.rematch[player], opponent: room.rematch[engine.opponentOf(player)] },
+        bot: room.bot?.difficulty ?? null,
       };
     }
     return result;
@@ -273,11 +284,86 @@ export class RoomManager {
     return { a: state(room.seats.a), b: state(room.seats.b) };
   }
 
-  /** Після будь-якої зміни стану: оновлюємо активність і таймер ходу. */
+  private open(difficulty: engine.BotDifficulty | null): Joined {
+    const code = this.freeCode();
+    const token = this.env.randomToken();
+    const now = this.now();
+
+    const room: Room = {
+      code,
+      game: engine.createGame(this.env.coinFlip()),
+      seats: { a: { token, connected: true, offlineSince: null } },
+      turnDeadline: null,
+      skips: { a: 0, b: 0 },
+      rematch: { a: false, b: false },
+      lastActivity: now,
+      bot: difficulty ? { difficulty, dueAt: null } : null,
+    };
+    if (difficulty) {
+      // Токен бота нікому не видається: діє він лише зсередини менеджера.
+      room.seats.b = { token: 'bot', connected: true, offlineSince: null };
+    }
+
+    this.rooms.set(code, room);
+    this.seats.set(token, { code, player: 'a' });
+    this.seatBot(room);
+
+    return { ok: true, code, token, player: 'a' };
+  }
+
+  private get random(): () => number {
+    return this.env.random ?? Math.random;
+  }
+
+  /** Бот розставляє флот одразу, щоб людині не довелося його чекати. */
+  private seatBot(room: Room): void {
+    if (!room.bot) return;
+    const result = engine.placeFleet(room.game, 'b', engine.randomFleet(this.random));
+    if (result.ok) room.game = result.game;
+  }
+
+  /** Після будь-якої зміни стану: оновлюємо активність, таймер ходу й чергу бота. */
   private afterChange(room: Room): void {
     const now = this.now();
     room.lastActivity = now;
     room.turnDeadline = room.game.phase === 'battle' ? now + this.config.turnMs : null;
+    this.scheduleBot(room, now);
+  }
+
+  private scheduleBot(room: Room, now: number): void {
+    const bot = room.bot;
+    if (!bot) return;
+
+    if (room.game.phase !== 'battle' || room.game.turn !== 'b') {
+      bot.dueAt = null;
+      return;
+    }
+    const { botMinMs, botMaxMs } = this.config;
+    bot.dueAt = now + botMinMs + this.random() * (botMaxMs - botMinMs);
+  }
+
+  /** Бот стріляє, коли настав його час. Якщо влучив, ходить знову (після нової паузи). */
+  private botMove(room: Room, now: number): boolean {
+    const bot = room.bot;
+    if (!bot || bot.dueAt === null || now < bot.dueAt) return false;
+
+    const humanBoard = room.game.boards.a;
+    if (room.game.phase !== 'battle' || room.game.turn !== 'b' || !humanBoard) {
+      bot.dueAt = null;
+      return false;
+    }
+
+    // Бот бачить лише те, що бачив би гравець: свої постріли й потоплені кораблі.
+    const at = engine.chooseShot(engine.viewOpponentBoard(humanBoard), bot.difficulty, this.random);
+    const result = engine.shoot(room.game, 'b', at);
+    if (!result.ok) {
+      bot.dueAt = null;
+      return false;
+    }
+
+    room.game = result.game;
+    this.afterChange(room);
+    return true;
   }
 
   private enforce(room: Room, now: number): boolean {
@@ -297,10 +383,12 @@ export class RoomManager {
     }
 
     // Час на хід вийшов: пропускаємо хід, а після кількох пропусків поспіль програємо.
+    // Хід бота таймером не обмежується: він сам ходить за секунду.
     const turn = room.game.turn;
     if (
       room.game.phase === 'battle' &&
       turn !== null &&
+      !(room.bot && turn === 'b') &&
       room.turnDeadline !== null &&
       now >= room.turnDeadline
     ) {
@@ -327,7 +415,9 @@ export class RoomManager {
   }
 
   private isStale(room: Room, now: number): boolean {
-    const anyoneConnected = Object.values(room.seats).some((seat) => seat?.connected);
+    // Бот завжди «на зв'язку», тож у кімнаті з ботом рахуємо лише людину.
+    const humans = room.bot ? [room.seats.a] : Object.values(room.seats);
+    const anyoneConnected = humans.some((seat) => seat?.connected);
     return !anyoneConnected && now - room.lastActivity >= this.config.roomTtlMs;
   }
 

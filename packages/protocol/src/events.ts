@@ -1,5 +1,11 @@
-import type { GameView, PlacementError, PlayerId } from '@pixelfleet/engine';
-import type { FirePayload, JoinRoomPayload, PlaceFleetPayload, ResumePayload } from './schemas.js';
+import type { BotDifficulty, GameView, PlacementError, PlayerId } from '@pixelfleet/engine';
+import type {
+  CreateBotPayload,
+  FirePayload,
+  JoinRoomPayload,
+  PlaceFleetPayload,
+  ResumePayload,
+} from './schemas.js';
 
 export type Presence = 'empty' | 'online' | 'offline';
 
@@ -29,15 +35,18 @@ export type SeatAck = Ack<{ code: string; token: string; player: PlayerId }>;
 export type ResumeAck = Ack<{ code: string; player: PlayerId }>;
 export type ActionAck = Ack;
 
-/** Те, що не входить у GameView: таймер і стан реваншу. */
+/** Те, що не входить у GameView: таймер, стан реваншу і чи суперник бот. */
 export interface RoomMeta {
   /** Скільки мілісекунд лишилось на хід. `null`, якщо таймер не йде. */
   turnRemainingMs: number | null;
   rematch: { you: boolean; opponent: boolean };
+  /** Складність бота, якщо суперник бот. */
+  bot: BotDifficulty | null;
 }
 
 export interface ClientToServerEvents {
   'room:create': (ack: (reply: SeatAck) => void) => void;
+  'room:create-bot': (payload: CreateBotPayload, ack: (reply: SeatAck) => void) => void;
   'room:join': (payload: JoinRoomPayload, ack: (reply: SeatAck) => void) => void;
   'room:resume': (payload: ResumePayload, ack: (reply: ResumeAck) => void) => void;
   'fleet:place': (payload: PlaceFleetPayload, ack: (reply: ActionAck) => void) => void;
@@ -49,7 +58,7 @@ export interface ClientToServerEvents {
 export interface ServerToClientEvents {
   /** Повна проєкція гри для цього гравця. Надсилається після кожної зміни. */
   'game:state': (view: GameView) => void;
-  /** Таймер ходу й стан реваншу. Надсилається разом зі `game:state`. */
+  /** Таймер ходу, стан реваншу й режим кімнати. Надсилається разом зі `game:state`. */
   'room:meta': (meta: RoomMeta) => void;
   /** Стан суперника: чи є він у кімнаті й чи на зв'язку. */
   'opponent:presence': (status: Presence) => void;

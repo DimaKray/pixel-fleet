@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
-import type { GameView, PlacedShip, PlayerId } from '@pixelfleet/engine';
+import type { BotDifficulty, GameView, PlacedShip, PlayerId } from '@pixelfleet/engine';
 import type {
   ActionAck,
   ErrorCode,
@@ -9,10 +9,10 @@ import type {
   SeatAck,
   WireError,
 } from '@pixelfleet/protocol';
-import { socket } from '@/lib/socket';
-import { useSessionStore } from './session';
 import { soundsForTransition } from '@/lib/cues';
+import { socket } from '@/lib/socket';
 import { playCues } from '@/lib/sound';
+import { useSessionStore } from './session';
 import { useSettingsStore } from './settings';
 
 export type ClientError = WireError | { code: 'network' };
@@ -69,6 +69,8 @@ export const useGameStore = defineStore('game', () => {
   /** Момент (за годинником клієнта), коли закінчиться час на хід. */
   const turnDeadline = ref<number | null>(null);
   const rematch = ref({ you: false, opponent: false });
+  /** Складність бота, якщо суперник бот, інакше `null`. */
+  const bot = ref<BotDifficulty | null>(null);
 
   function reset(): void {
     session.clearToken();
@@ -78,6 +80,7 @@ export const useGameStore = defineStore('game', () => {
     opponentPresence.value = 'empty';
     turnDeadline.value = null;
     rematch.value = { you: false, opponent: false };
+    bot.value = null;
   }
 
   function adopt(reply: SeatAck | ResumeAck | NetworkFailure): SessionResult {
@@ -92,6 +95,13 @@ export const useGameStore = defineStore('game', () => {
   async function createRoom(): Promise<SessionResult> {
     if (!(await ensureConnected())) return NETWORK_FAILURE;
     return adopt(await request<SeatAck>((cb) => socket.emit('room:create', cb)));
+  }
+
+  async function createBotRoom(difficulty: BotDifficulty): Promise<SessionResult> {
+    if (!(await ensureConnected())) return NETWORK_FAILURE;
+    return adopt(
+      await request<SeatAck>((cb) => socket.emit('room:create-bot', { difficulty }, cb)),
+    );
   }
 
   async function joinRoom(roomCode: string): Promise<SessionResult> {
@@ -140,6 +150,7 @@ export const useGameStore = defineStore('game', () => {
     // Сервер шле скільки лишилось, а не абсолютний час: годинники клієнта й сервера можуть різнитися.
     turnDeadline.value = meta.turnRemainingMs === null ? null : Date.now() + meta.turnRemainingMs;
     rematch.value = meta.rematch;
+    bot.value = meta.bot;
   });
   socket.on('opponent:presence', (status) => {
     opponentPresence.value = status;
@@ -161,7 +172,9 @@ export const useGameStore = defineStore('game', () => {
     opponentPresence,
     turnDeadline,
     rematch,
+    bot,
     createRoom,
+    createBotRoom,
     joinRoom,
     resume,
     placeFleet,

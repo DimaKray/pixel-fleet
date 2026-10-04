@@ -1,5 +1,8 @@
-import { BOARD_SIZE, FLEET, canPlaceShip, validatePlacement } from '@pixelfleet/engine';
-import type { Orientation, PlacedShip, ShipType } from '@pixelfleet/engine';
+import { FLEET, canPlaceShip, validatePlacement } from '@pixelfleet/engine';
+import type { PlacedShip, ShipType } from '@pixelfleet/engine';
+
+/** Випадкова розстановка тепер живе в рушії: її ж використовує бот на сервері. */
+export { randomFleet } from '@pixelfleet/engine';
 
 export type Draft = readonly PlacedShip[];
 
@@ -20,38 +23,4 @@ export function nextUnplaced(draft: Draft): ShipType | null {
 
 export function isComplete(draft: Draft): boolean {
   return validatePlacement(draft).ok;
-}
-
-function tryRandomFleet(random: () => number): PlacedShip[] | null {
-  const placed: PlacedShip[] = [];
-
-  for (const { type } of FLEET) {
-    let done = false;
-    for (let attempt = 0; attempt < 200 && !done; attempt++) {
-      const orientation: Orientation = random() < 0.5 ? 'horizontal' : 'vertical';
-      const ship: PlacedShip = {
-        type,
-        orientation,
-        origin: {
-          x: Math.floor(random() * BOARD_SIZE),
-          y: Math.floor(random() * BOARD_SIZE),
-        },
-      };
-      if (canPlaceShip(placed, ship)) {
-        placed.push(ship);
-        done = true;
-      }
-    }
-    if (!done) return null;
-  }
-  return placed;
-}
-
-/** `random` передається ззовні, щоб у тестах результат був відтворюваний. */
-export function randomFleet(random: () => number = Math.random): PlacedShip[] {
-  for (let attempt = 0; attempt < 100; attempt++) {
-    const fleet = tryRandomFleet(random);
-    if (fleet) return fleet;
-  }
-  throw new Error('Could not generate a random fleet');
 }
